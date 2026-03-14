@@ -49,7 +49,7 @@
   },
   "meta": {
     "lastTouchedVersion": "2026.3.1",
-    "lastTouchedAt": "2026-03-13T16:37:00.382Z"
+    "lastTouchedAt": "2026-03-14T12:21:06.592Z"
   },
   "wizard": {
     "lastRunAt": "2026-03-06T15:42:55.936Z",
@@ -92,23 +92,41 @@
   "agents": {
     "defaults": {
       "model": {
-        "primary": "openrouter/hunter-alpha"
-      },
-      "heartbeat": {
-        "every": "7d"
+        "primary": "openrouter/hunter-alpha",
+        "fallbacks": [
+          "openrouter/free",
+          "openrouter/nqwen/qwen3-next-80b-a3b-instruct:free",
+          "openrouter/sourceful/riverflow-v2-pro",
+          "openrouter/sourceful/riverflow-v2-fast",
+          "openrouter/stepfun/step-3.5-flash:free",
+          "openrouter/arcee-ai/trinity-large-preview:free",
+          "openrouter/liquid/lfm-2.5-1.2b-thinking:free",
+          "openrouter/bytedance-seed/seedream-4.5"
+        ]
       },
       "models": {
         "openrouter/auto": {
           "alias": "OpenRouter"
         },
         "liquid/lfm2-8b-a1b": {},
-        "openrouter/hunter-alpha": {}
+        "openrouter/hunter-alpha": {},
+        "openrouter/free": {},
+        "openrouter/nqwen/qwen3-next-80b-a3b-instruct:free": {},
+        "openrouter/sourceful/riverflow-v2-pro": {},
+        "openrouter/sourceful/riverflow-v2-fast": {},
+        "openrouter/stepfun/step-3.5-flash:free": {},
+        "openrouter/arcee-ai/trinity-large-preview:free": {},
+        "openrouter/liquid/lfm-2.5-1.2b-thinking:free": {},
+        "openrouter/bytedance-seed/seedream-4.5": {}
       },
       "workspace": "/data/.openclaw/workspace",
       "compaction": {
         "mode": "safeguard"
       },
-      "timeoutSeconds": 7200
+      "timeoutSeconds": 7200,
+      "heartbeat": {
+        "every": "7d"
+      }
     },
     "list": [
       {
@@ -524,7 +542,7 @@
     "mode": "local",
     "bind": "loopback",
     "controlUi": {
-      "dangerouslyAllowHostHeaderOriginFallback": false,
+      "dangerouslyAllowHostHeaderOriginFallback": true,
       "allowInsecureAuth": false,
       "dangerouslyDisableDeviceAuth": true
     },
