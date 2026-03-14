@@ -1,0 +1,30 @@
+# ── Sensitive auth & credentials ─────────────────────────────────────────────
+auth-profiles.json
+token-cache.json
+*.key
+*.pem
+*.cert
+*.p12
+credentials.json
+
+# ── Session JSONL files (backed up to Google Drive separately) ────────────────
+sessions/*.jsonl
+*/sessions/*.jsonl
+
+# ── Cron run logs (noisy, not useful in git) ──────────────────────────────────
+cron/runs/
+
+# ── Exec approvals (runtime state) ───────────────────────────────────────────
+exec-approvals.json
+
+# ── Backups ───────────────────────────────────────────────────────────────────
+*.bak
+*.bak.*
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+logs/
+
+# ── Node / OS junk ───────────────────────────────────────────────────────────
+node_modules/
+.DS_Store
+*.log

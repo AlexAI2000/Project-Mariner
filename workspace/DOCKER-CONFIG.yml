@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  director:
+    image: openclaw/browser-director
+    volumes:
+      - ./skills:/app/skills
+    env_file:
+      - .env
+    networks:
+      - browser-network
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+  workers:
+    image: openclaw/browser-worker
+    volumes:
+      - ./skills:/app/skills
+    env_file:
+      - .env
+    networks:
+      - browser-network
+    deploy:
+      replicas: 10
+      update_config:
+        parallelism: 1
+        delay: 5s
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+
+networks:
+  browser-network:
+    external: true

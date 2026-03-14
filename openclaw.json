@@ -1,0 +1,543 @@
+{
+  "plugins": {
+    "allow": [
+      "whatsapp",
+      "discord",
+      "telegram",
+      "slack",
+      "nostr",
+      "googlechat"
+    ],
+    "entries": {
+      "whatsapp": {
+        "enabled": true
+      },
+      "discord": {
+        "enabled": true
+      },
+      "imessage": {
+        "enabled": false
+      },
+      "telegram": {
+        "enabled": true
+      },
+      "slack": {
+        "enabled": true
+      },
+      "nostr": {
+        "enabled": true
+      },
+      "signal": {
+        "enabled": false
+      },
+      "googlechat": {
+        "enabled": true
+      }
+    }
+  },
+  "channels": {
+    "telegram": {
+      "dmPolicy": "allowlist",
+      "groupPolicy": "allowlist",
+      "streaming": "off",
+      "botToken": "8498790069:AAHA0rFxqbd4uugFtsUmmMjwTvZsOeMQaoc",
+      "enabled": true,
+      "allowFrom": [
+        "8506352732"
+      ]
+    }
+  },
+  "meta": {
+    "lastTouchedVersion": "2026.3.1",
+    "lastTouchedAt": "2026-03-13T16:37:00.382Z"
+  },
+  "wizard": {
+    "lastRunAt": "2026-03-06T15:42:55.936Z",
+    "lastRunVersion": "2026.3.1",
+    "lastRunCommand": "onboard",
+    "lastRunMode": "local"
+  },
+  "update": {
+    "channel": "stable",
+    "checkOnStart": false
+  },
+  "browser": {
+    "headless": true,
+    "noSandbox": true,
+    "defaultProfile": "openclaw",
+    "ssrfPolicy": {
+      "dangerouslyAllowPrivateNetwork": true
+    },
+    "profiles": {
+      "mimic": {
+        "cdpUrl": "http://172.18.0.3:55000",
+        "color": "#00CC44"
+      }
+    }
+  },
+  "auth": {
+    "profiles": {
+      "openrouter:default": {
+        "provider": "openrouter",
+        "mode": "api_key"
+      }
+    }
+  },
+  "models": {
+    "mode": "merge",
+    "bedrockDiscovery": {
+      "providerFilter": []
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "openrouter/hunter-alpha"
+      },
+      "models": {
+        "openrouter/auto": {
+          "alias": "OpenRouter"
+        },
+        "liquid/lfm2-8b-a1b": {},
+        "openrouter/hunter-alpha": {}
+      },
+      "workspace": "/data/.openclaw/workspace",
+      "compaction": {
+        "mode": "safeguard"
+      },
+      "timeoutSeconds": 7200
+    },
+    "list": [
+      {
+        "id": "main",
+        "name": "main"
+      },
+      {
+        "id": "director",
+        "name": "director",
+        "workspace": "/data/.openclaw/workspace-director",
+        "agentDir": "/data/.openclaw/agents/director/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "worker-1",
+        "name": "mariner-pilot-1",
+        "workspace": "/data/.openclaw/workspace-worker-1",
+        "agentDir": "/data/.openclaw/agents/worker-1/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "worker-2",
+        "name": "mariner-pilot-2",
+        "workspace": "/data/.openclaw/workspace-worker-2",
+        "agentDir": "/data/.openclaw/agents/worker-2/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "worker-3",
+        "name": "mariner-pilot-3",
+        "workspace": "/data/.openclaw/workspace-worker-3",
+        "agentDir": "/data/.openclaw/agents/worker-3/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "worker-4",
+        "name": "mariner-pilot-4",
+        "workspace": "/data/.openclaw/workspace-worker-4",
+        "agentDir": "/data/.openclaw/agents/worker-4/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "worker-5",
+        "name": "mariner-pilot-5",
+        "workspace": "/data/.openclaw/workspace-worker-5",
+        "agentDir": "/data/.openclaw/agents/worker-5/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "worker-6",
+        "name": "mariner-pilot-6",
+        "workspace": "/data/.openclaw/workspace-worker-6",
+        "agentDir": "/data/.openclaw/agents/worker-6/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "worker-7",
+        "name": "mariner-pilot-7",
+        "workspace": "/data/.openclaw/workspace-worker-7",
+        "agentDir": "/data/.openclaw/agents/worker-7/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "worker-8",
+        "name": "mariner-pilot-8",
+        "workspace": "/data/.openclaw/workspace-worker-8",
+        "agentDir": "/data/.openclaw/agents/worker-8/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "worker-9",
+        "name": "mariner-pilot-9",
+        "workspace": "/data/.openclaw/workspace-worker-9",
+        "agentDir": "/data/.openclaw/agents/worker-9/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "worker-10",
+        "name": "mariner-pilot-10",
+        "workspace": "/data/.openclaw/workspace-worker-10",
+        "agentDir": "/data/.openclaw/agents/worker-10/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "sm-linkedin-1",
+        "name": "mariner-pilot-sm-1",
+        "workspace": "/data/.openclaw/workspace-sm-linkedin-1",
+        "agentDir": "/data/.openclaw/agents/sm-linkedin-1/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "sm-linkedin-2",
+        "name": "mariner-pilot-sm-2",
+        "workspace": "/data/.openclaw/workspace-sm-linkedin-2",
+        "agentDir": "/data/.openclaw/agents/sm-linkedin-2/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "sm-linkedin-3",
+        "name": "mariner-pilot-sm-3",
+        "workspace": "/data/.openclaw/workspace-sm-linkedin-3",
+        "agentDir": "/data/.openclaw/agents/sm-linkedin-3/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "sm-linkedin-4",
+        "name": "mariner-pilot-sm-4",
+        "workspace": "/data/.openclaw/workspace-sm-linkedin-4",
+        "agentDir": "/data/.openclaw/agents/sm-linkedin-4/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "sm-linkedin-5",
+        "name": "mariner-pilot-sm-5",
+        "workspace": "/data/.openclaw/workspace-sm-linkedin-5",
+        "agentDir": "/data/.openclaw/agents/sm-linkedin-5/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "sm-instagram",
+        "name": "sm-instagram",
+        "workspace": "/data/.openclaw/workspace-sm-instagram",
+        "agentDir": "/data/.openclaw/agents/sm-instagram/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "sm-twitter",
+        "name": "sm-twitter",
+        "workspace": "/data/.openclaw/workspace-sm-twitter",
+        "agentDir": "/data/.openclaw/agents/sm-twitter/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "sm-facebook",
+        "name": "sm-facebook",
+        "workspace": "/data/.openclaw/workspace-sm-facebook",
+        "agentDir": "/data/.openclaw/agents/sm-facebook/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "img-gen-1",
+        "name": "img-gen-1",
+        "workspace": "/data/.openclaw/workspace-img-gen-1",
+        "agentDir": "/data/.openclaw/agents/img-gen-1/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "img-gen-2",
+        "name": "img-gen-2",
+        "workspace": "/data/.openclaw/workspace-img-gen-2",
+        "agentDir": "/data/.openclaw/agents/img-gen-2/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "img-gen-3",
+        "name": "img-gen-3",
+        "workspace": "/data/.openclaw/workspace-img-gen-3",
+        "agentDir": "/data/.openclaw/agents/img-gen-3/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "img-gen-4",
+        "name": "img-gen-4",
+        "workspace": "/data/.openclaw/workspace-img-gen-4",
+        "agentDir": "/data/.openclaw/agents/img-gen-4/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "img-gen-5",
+        "name": "img-gen-5",
+        "workspace": "/data/.openclaw/workspace-img-gen-5",
+        "agentDir": "/data/.openclaw/agents/img-gen-5/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-assistant-1",
+        "name": "mariner-assistant-1",
+        "workspace": "/data/.openclaw/workspace-mariner-assistant-1",
+        "agentDir": "/data/.openclaw/agents/mariner-assistant-1/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-assistant-2",
+        "name": "mariner-assistant-2",
+        "workspace": "/data/.openclaw/workspace-mariner-assistant-2",
+        "agentDir": "/data/.openclaw/agents/mariner-assistant-2/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-assistant-3",
+        "name": "mariner-assistant-3",
+        "workspace": "/data/.openclaw/workspace-mariner-assistant-3",
+        "agentDir": "/data/.openclaw/agents/mariner-assistant-3/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-assistant-4",
+        "name": "mariner-assistant-4",
+        "workspace": "/data/.openclaw/workspace-mariner-assistant-4",
+        "agentDir": "/data/.openclaw/agents/mariner-assistant-4/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-assistant-5",
+        "name": "mariner-assistant-5",
+        "workspace": "/data/.openclaw/workspace-mariner-assistant-5",
+        "agentDir": "/data/.openclaw/agents/mariner-assistant-5/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-assistant-6",
+        "name": "mariner-assistant-6",
+        "workspace": "/data/.openclaw/workspace-mariner-assistant-6",
+        "agentDir": "/data/.openclaw/agents/mariner-assistant-6/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-assistant-7",
+        "name": "mariner-assistant-7",
+        "workspace": "/data/.openclaw/workspace-mariner-assistant-7",
+        "agentDir": "/data/.openclaw/agents/mariner-assistant-7/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-assistant-8",
+        "name": "mariner-assistant-8",
+        "workspace": "/data/.openclaw/workspace-mariner-assistant-8",
+        "agentDir": "/data/.openclaw/agents/mariner-assistant-8/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-assistant-9",
+        "name": "mariner-assistant-9",
+        "workspace": "/data/.openclaw/workspace-mariner-assistant-9",
+        "agentDir": "/data/.openclaw/agents/mariner-assistant-9/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-assistant-10",
+        "name": "mariner-assistant-10",
+        "workspace": "/data/.openclaw/workspace-mariner-assistant-10",
+        "agentDir": "/data/.openclaw/agents/mariner-assistant-10/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-assistant-11",
+        "name": "mariner-assistant-11",
+        "workspace": "/data/.openclaw/workspace-mariner-assistant-11",
+        "agentDir": "/data/.openclaw/agents/mariner-assistant-11/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-assistant-12",
+        "name": "mariner-assistant-12",
+        "workspace": "/data/.openclaw/workspace-mariner-assistant-12",
+        "agentDir": "/data/.openclaw/agents/mariner-assistant-12/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-assistant-13",
+        "name": "mariner-assistant-13",
+        "workspace": "/data/.openclaw/workspace-mariner-assistant-13",
+        "agentDir": "/data/.openclaw/agents/mariner-assistant-13/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-assistant-14",
+        "name": "mariner-assistant-14",
+        "workspace": "/data/.openclaw/workspace-mariner-assistant-14",
+        "agentDir": "/data/.openclaw/agents/mariner-assistant-14/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-assistant-15",
+        "name": "mariner-assistant-15",
+        "workspace": "/data/.openclaw/workspace-mariner-assistant-15",
+        "agentDir": "/data/.openclaw/agents/mariner-assistant-15/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-humanizer-1",
+        "name": "mariner-humanizer-1",
+        "workspace": "/data/.openclaw/workspace-mariner-humanizer-1",
+        "agentDir": "/data/.openclaw/agents/mariner-humanizer-1/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-humanizer-2",
+        "name": "mariner-humanizer-2",
+        "workspace": "/data/.openclaw/workspace-mariner-humanizer-2",
+        "agentDir": "/data/.openclaw/agents/mariner-humanizer-2/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-humanizer-3",
+        "name": "mariner-humanizer-3",
+        "workspace": "/data/.openclaw/workspace-mariner-humanizer-3",
+        "agentDir": "/data/.openclaw/agents/mariner-humanizer-3/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-humanizer-4",
+        "name": "mariner-humanizer-4",
+        "workspace": "/data/.openclaw/workspace-mariner-humanizer-4",
+        "agentDir": "/data/.openclaw/agents/mariner-humanizer-4/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-humanizer-5",
+        "name": "mariner-humanizer-5",
+        "workspace": "/data/.openclaw/workspace-mariner-humanizer-5",
+        "agentDir": "/data/.openclaw/agents/mariner-humanizer-5/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-humanizer-6",
+        "name": "mariner-humanizer-6",
+        "workspace": "/data/.openclaw/workspace-mariner-humanizer-6",
+        "agentDir": "/data/.openclaw/agents/mariner-humanizer-6/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-humanizer-7",
+        "name": "mariner-humanizer-7",
+        "workspace": "/data/.openclaw/workspace-mariner-humanizer-7",
+        "agentDir": "/data/.openclaw/agents/mariner-humanizer-7/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-humanizer-8",
+        "name": "mariner-humanizer-8",
+        "workspace": "/data/.openclaw/workspace-mariner-humanizer-8",
+        "agentDir": "/data/.openclaw/agents/mariner-humanizer-8/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-humanizer-9",
+        "name": "mariner-humanizer-9",
+        "workspace": "/data/.openclaw/workspace-mariner-humanizer-9",
+        "agentDir": "/data/.openclaw/agents/mariner-humanizer-9/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-humanizer-10",
+        "name": "mariner-humanizer-10",
+        "workspace": "/data/.openclaw/workspace-mariner-humanizer-10",
+        "agentDir": "/data/.openclaw/agents/mariner-humanizer-10/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-humanizer-11",
+        "name": "mariner-humanizer-11",
+        "workspace": "/data/.openclaw/workspace-mariner-humanizer-11",
+        "agentDir": "/data/.openclaw/agents/mariner-humanizer-11/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-humanizer-12",
+        "name": "mariner-humanizer-12",
+        "workspace": "/data/.openclaw/workspace-mariner-humanizer-12",
+        "agentDir": "/data/.openclaw/agents/mariner-humanizer-12/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-humanizer-13",
+        "name": "mariner-humanizer-13",
+        "workspace": "/data/.openclaw/workspace-mariner-humanizer-13",
+        "agentDir": "/data/.openclaw/agents/mariner-humanizer-13/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-humanizer-14",
+        "name": "mariner-humanizer-14",
+        "workspace": "/data/.openclaw/workspace-mariner-humanizer-14",
+        "agentDir": "/data/.openclaw/agents/mariner-humanizer-14/agent",
+        "model": "openrouter/hunter-alpha"
+      },
+      {
+        "id": "mariner-humanizer-15",
+        "name": "mariner-humanizer-15",
+        "workspace": "/data/.openclaw/workspace-mariner-humanizer-15",
+        "agentDir": "/data/.openclaw/agents/mariner-humanizer-15/agent",
+        "model": "openrouter/hunter-alpha"
+      }
+    ]
+  },
+  "tools": {
+    "loopDetection": {
+      "enabled": true,
+      "warningThreshold": 50,
+      "criticalThreshold": 100,
+      "globalCircuitBreakerThreshold": 150
+    },
+    "elevated": {
+      "enabled": true
+    }
+  },
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto",
+    "bash": true,
+    "restart": true,
+    "ownerDisplay": "raw"
+  },
+  "session": {
+    "dmScope": "per-channel-peer"
+  },
+  "hooks": {
+    "token": "hooks_9O0IWy8zIq5tGAIEC5YrF9MXxZlhiEbq"
+  },
+  "gateway": {
+    "port": 18789,
+    "mode": "local",
+    "bind": "loopback",
+    "controlUi": {
+      "dangerouslyAllowHostHeaderOriginFallback": false,
+      "allowInsecureAuth": false,
+      "dangerouslyDisableDeviceAuth": true
+    },
+    "auth": {
+      "mode": "token",
+      "token": "9O0IWy8zIq5tGAIEC5YrF9MXxZlhiEbq"
+    },
+    "trustedProxies": [
+      "127.0.0.1/32"
+    ],
+    "tailscale": {
+      "mode": "off",
+      "resetOnExit": false
+    },
+    "remote": {
+      "token": "9O0IWy8zIq5tGAIEC5YrF9MXxZlhiEbq"
+    }
+  }
+}
