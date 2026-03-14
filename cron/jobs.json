@@ -9,7 +9,7 @@
         "everyMs": 120000,
         "anchorMs": 1772885721286
       },
-      "enabled": true,
+      "enabled": false,
       "agentId": "img-gen-1",
       "sessionTarget": "isolated",
       "payload": {
@@ -17,7 +17,6 @@
         "message": "CHECK_IMG_QUEUE: Check the image generation queue and process any pending requests. Run: node /data/img-gen/img-claim.js img-gen-1 — if a request is returned (not null), process it following your SOUL.md workflow. Generate the image in Gemini, download it, call img-complete.js when done, then check the queue again for more pending requests."
       },
       "state": {
-        "nextRunAtMs": 1773484162015,
         "lastRunAtMs": 1773480538211,
         "lastRunStatus": "error",
         "lastStatus": "error",
@@ -40,7 +39,7 @@
         "everyMs": 120000,
         "anchorMs": 1772885888935
       },
-      "enabled": true,
+      "enabled": false,
       "agentId": "img-gen-2",
       "sessionTarget": "isolated",
       "payload": {
@@ -48,20 +47,19 @@
         "message": "CHECK_IMG_QUEUE: Check the image generation queue and process any pending requests. Run: node /data/img-gen/img-claim.js img-gen-2 — if a request is returned (not null), process it following your SOUL.md workflow. Generate the image in Gemini, download it, call img-complete.js when done, then check the queue again for more pending requests."
       },
       "state": {
-        "nextRunAtMs": 1773482496305,
-        "lastRunAtMs": 1773478883738,
+        "lastRunAtMs": 1773482496310,
         "lastRunStatus": "error",
         "lastStatus": "error",
-        "lastDurationMs": 12567,
+        "lastDurationMs": 18159,
         "lastDeliveryStatus": "unknown",
-        "consecutiveErrors": 5,
+        "consecutiveErrors": 6,
         "lastError": "No delivery target resolved for channel \"telegram\". Set delivery.to."
       },
       "wakeMode": "now",
       "delivery": {
         "mode": "announce"
       },
-      "updatedAtMs": 1773478896305
+      "updatedAtMs": 1773482514469
     },
     {
       "id": "f206f716-3131-4a9c-ab7c-52d14e082898",
@@ -71,7 +69,7 @@
         "everyMs": 120000,
         "anchorMs": 1772885753566
       },
-      "enabled": true,
+      "enabled": false,
       "agentId": "img-gen-3",
       "sessionTarget": "isolated",
       "payload": {
@@ -79,7 +77,6 @@
         "message": "CHECK_IMG_QUEUE: Check the image generation queue and process any pending requests. Run: node /data/img-gen/img-claim.js img-gen-3 — if a request is returned (not null), process it following your SOUL.md workflow. Generate the image in Gemini, download it, call img-complete.js when done, then check the queue again for more pending requests."
       },
       "state": {
-        "nextRunAtMs": 1773484987869,
         "lastRunAtMs": 1773481363374,
         "lastRunStatus": "error",
         "lastStatus": "error",
@@ -102,7 +99,7 @@
         "everyMs": 120000,
         "anchorMs": 1772885808752
       },
-      "enabled": true,
+      "enabled": false,
       "agentId": "img-gen-4",
       "sessionTarget": "isolated",
       "payload": {
@@ -110,20 +107,19 @@
         "message": "CHECK_IMG_QUEUE: Check the image generation queue and process any pending requests. Run: node /data/img-gen/img-claim.js img-gen-4 — if a request is returned (not null), process it following your SOUL.md workflow. Generate the image in Gemini, download it, call img-complete.js when done, then check the queue again for more pending requests."
       },
       "state": {
-        "nextRunAtMs": 1773483233936,
-        "lastRunAtMs": 1773479618880,
+        "lastRunAtMs": 1773483593959,
         "lastRunStatus": "error",
         "lastStatus": "error",
-        "lastDurationMs": 15056,
+        "lastDurationMs": 35614,
         "lastDeliveryStatus": "unknown",
-        "consecutiveErrors": 9,
+        "consecutiveErrors": 3,
         "lastError": "No delivery target resolved for channel \"telegram\". Set delivery.to."
       },
       "wakeMode": "now",
       "delivery": {
         "mode": "announce"
       },
-      "updatedAtMs": 1773479633936
+      "updatedAtMs": 1773483629573
     },
     {
       "id": "7c404ad7-d06f-4777-9957-28c5b0982883",
@@ -133,7 +129,7 @@
         "everyMs": 120000,
         "anchorMs": 1772885839458
       },
-      "enabled": true,
+      "enabled": false,
       "agentId": "img-gen-5",
       "sessionTarget": "isolated",
       "payload": {
@@ -141,7 +137,6 @@
         "message": "CHECK_IMG_QUEUE: Check the image generation queue and process any pending requests. Run: node /data/img-gen/img-claim.js img-gen-5 — if a request is returned (not null), process it following your SOUL.md workflow. Generate the image in Gemini, download it, call img-complete.js when done, then check the queue again for more pending requests."
       },
       "state": {
-        "nextRunAtMs": 1773484952829,
         "lastRunAtMs": 1773481341725,
         "lastRunStatus": "error",
         "lastStatus": "error",

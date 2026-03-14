@@ -94,6 +94,9 @@
       "model": {
         "primary": "openrouter/hunter-alpha"
       },
+      "heartbeat": {
+        "every": "7d"
+      },
       "models": {
         "openrouter/auto": {
           "alias": "OpenRouter"
