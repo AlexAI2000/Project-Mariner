@@ -79,20 +79,20 @@
         "message": "CHECK_IMG_QUEUE: Check the image generation queue and process any pending requests. Run: node /data/img-gen/img-claim.js img-gen-3 — if a request is returned (not null), process it following your SOUL.md workflow. Generate the image in Gemini, download it, call img-complete.js when done, then check the queue again for more pending requests."
       },
       "state": {
-        "nextRunAtMs": 1773481363369,
-        "lastRunAtMs": 1773477753507,
+        "nextRunAtMs": 1773484987869,
+        "lastRunAtMs": 1773481363374,
         "lastRunStatus": "error",
         "lastStatus": "error",
-        "lastDurationMs": 9862,
+        "lastDurationMs": 24495,
         "lastDeliveryStatus": "unknown",
-        "consecutiveErrors": 10,
+        "consecutiveErrors": 11,
         "lastError": "No delivery target resolved for channel \"telegram\". Set delivery.to."
       },
       "wakeMode": "now",
       "delivery": {
         "mode": "announce"
       },
-      "updatedAtMs": 1773477763369
+      "updatedAtMs": 1773481387869
     },
     {
       "id": "a3dd61c2-6bac-4730-8c41-ba48a924ad5a",
@@ -141,20 +141,20 @@
         "message": "CHECK_IMG_QUEUE: Check the image generation queue and process any pending requests. Run: node /data/img-gen/img-claim.js img-gen-5 — if a request is returned (not null), process it following your SOUL.md workflow. Generate the image in Gemini, download it, call img-complete.js when done, then check the queue again for more pending requests."
       },
       "state": {
-        "nextRunAtMs": 1773481341721,
-        "lastRunAtMs": 1773477734367,
+        "nextRunAtMs": 1773484952829,
+        "lastRunAtMs": 1773481341725,
         "lastRunStatus": "error",
         "lastStatus": "error",
-        "lastDurationMs": 7354,
+        "lastDurationMs": 11104,
         "lastDeliveryStatus": "unknown",
-        "consecutiveErrors": 7,
+        "consecutiveErrors": 8,
         "lastError": "No delivery target resolved for channel \"telegram\". Set delivery.to."
       },
       "wakeMode": "now",
       "delivery": {
         "mode": "announce"
       },
-      "updatedAtMs": 1773477741721
+      "updatedAtMs": 1773481352829
     }
   ]
 }

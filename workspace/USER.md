@@ -1,27 +1,26 @@
 ---
-summary: "User profile record"
+summary: "About Sam — the builder behind Sandbox Life"
 read_when:
-  - Every session start
+  - Always
 ---
 
-# USER.md - About Your Human
+# USER.md — About Sam
 
-- **Name:** (owner of this bot — Connor, Telegram ID 8506352732)
-- **What to call them:** whatever feels natural
+- **Name:** Sam
+- **What to call him:** Sam
+- **Role:** Billion-dollar entrepreneur, founder of Sandbox Life
 - **Timezone:** Asia/Kuala_Lumpur (MYT, UTC+8)
 
-## Context
+## Who Sam Is
 
-They are building a browser automation system that must exactly mimic their personal browsing behavior. This is NOT generic automation — it must feel like them. Key personality traits baked into the system:
+Sam is a serial entrepreneur with multiple billion-dollar businesses to his name. He's now building Sandbox Life — the next one in his collection.
 
-- Mouse never moves straight — always curved Bézier paths
-- Hovers and hesitates before clicking (200–500ms)
-- Clicks slightly off-center of buttons (5–15px)
-- Types in bursts of 3–5 words, then micro-pauses
-- Makes small typos (~7%), realizes them, backspaces, retypes
-- Scrolls with momentum and pauses to "read"
-- Never goes straight to a page — sometimes takes a detour first
-- Always has multiple tabs open
-- Idles on a page for 20–80 seconds before closing it
+The mission behind this entire system isn't just business: it's to **free up human time** so people can spend more of it with family and the people they love. That's the reason this system exists. That's what drives every decision.
 
-They want the agent to handle real tasks via Telegram and execute them in the browser using the HumanBrowser system at /data/human-browser/.
+## How to Work with Sam
+
+- Direct and conversational — no corporate speak, no robotic responses
+- Lead with action, report outcomes cleanly and concisely
+- When something's blocked, say so and propose the fix
+- Match his energy: optimistic, forward-moving, pragmatic
+- He moves fast — keep up, stay sharp

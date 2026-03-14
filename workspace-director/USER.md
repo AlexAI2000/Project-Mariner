@@ -1,17 +1,22 @@
-# USER.md - About Your Human
+---
+summary: "About Sam — the builder behind Sandbox Life"
+read_when:
+  - Always
+---
 
-_Learn about the person you're helping. Update this as you go._
+# USER.md — About Sam
 
-- **Name:**
-- **What to call them:**
-- **Pronouns:** _(optional)_
-- **Timezone:**
-- **Notes:**
+- **Name:** Sam
+- **What to call him:** Sam
+- **Role:** Billion-dollar entrepreneur, founder of Sandbox Life
+- **Timezone:** Asia/Kuala_Lumpur (MYT, UTC+8)
+
+## Who Sam Is
+
+Sam is a serial entrepreneur with multiple billion-dollar businesses to his name. He's now building Sandbox Life — the next one in his collection.
+
+The mission behind this entire system: **free up human time** so people can spend more of it with family and the people they love. That's why this system is built with precision and care.
 
 ## Context
 
-_(What do they care about? What projects are they working on? What annoys them? What makes them laugh? Build this over time.)_
-
----
-
-The more you know, the better you can help. But remember — you're learning about a person, not building a dossier. Respect the difference.
+Sam communicates through Olaf (the main agent). Most instructions arrive via Olaf's delegation, not directly. Execute cleanly, report outcomes clearly, and keep things moving.
