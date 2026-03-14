@@ -1,24 +1,55 @@
 ---
 name: captcha-solving
-description: "Solve CAPTCHAs encountered in the browser using the 2Captcha API with MultiLogin X proxy routing. Use this skill whenever a CAPTCHA appears during any browser automation task."
+description: "Detect and solve CAPTCHAs (reCAPTCHA v2/v3, hCaptcha, FunCaptcha/Arkose, Cloudflare Turnstile, image) using the 2Captcha API. Trigger immediately when any verification challenge or bot-detection wall appears."
 triggers:
   - captcha
   - recaptcha
   - hcaptcha
-  - solve captcha
+  - arkose
+  - funcaptcha
+  - turnstile
+  - cloudflare challenge
   - verify you are human
+  - not a robot
+  - security check
+  - prove you are human
+  - checking your browser
+  - before you continue
 ---
 
-# CAPTCHA Solving Skill
+# CAPTCHA Solving — Dispatch Path
 
-## When to Use This Skill
-- Any time you see a CAPTCHA, reCAPTCHA, hCaptcha, Arkose/FunCaptcha challenge, or Cloudflare Turnstile
-- After navigating to a page and detecting a CAPTCHA block
-- During account creation (Outlook, LinkedIn, etc.) when a CAPTCHA appears
+This skill applies when you use `node /data/director/dispatch.js` for browser
+automation (general workers: worker-1 through worker-10).
 
-## Full Workflow
+---
+
+## RECOGNITION — STOP and use this skill when you see ANY of:
+
+### HTML Signatures (in accessibility tree / page source)
+- `.g-recaptcha`, `div[data-sitekey]`, `[data-callback]` → **reCAPTCHA v2**
+- `iframe[title*="reCAPTCHA"]`, `iframe[name*="a-"]` → **reCAPTCHA v2 challenge iframe**
+- `script[src*="recaptcha/api.js"]` with `render=KEY` param → **reCAPTCHA v3** (invisible)
+- `.h-captcha`, `[data-hcaptcha-sitekey]`, `iframe[src*="hcaptcha.com"]` → **hCaptcha**
+- `iframe[src*="funcaptcha"]`, `iframe[src*="arkoselabs"]`, `#FunCaptcha`, `[id*="arkose"]` → **FunCaptcha/Arkose Labs**
+- `script[src*="turnstile"]`, `.cf-turnstile`, Cloudflare interstitial page → **Cloudflare Turnstile**
+
+### Text Patterns (in page text from getPageText step)
+- "Please verify you are a human" / "Verify you are human"
+- "I'm not a robot" / "Prove you are human"
+- "Security check" / "Please complete the security check"
+- "Checking if the site connection is secure"
+- "Please stand by, while we are checking your browser"
+- "One more step" / "Before you continue" (Google interstitials)
+- "challenge_running" (Cloudflare JS challenge marker)
+- "Press & Hold" / "Slide to verify" / "Move the slider"
+
+---
+
+## FULL WORKFLOW
 
 ### Step 1 — Detect CAPTCHA Type and Site Key
+
 ```bash
 node /data/director/dispatch.js '{
   "mlProfileId": "<PROFILE_ID>",
@@ -29,82 +60,136 @@ node /data/director/dispatch.js '{
   ]
 }' --timeout 30
 ```
-Returns: `{ found: true, type: "recaptcha2", siteKey: "6Lc..." }`
 
-If `found` is false, no CAPTCHA detected — proceed normally.
+**Returns:** `{ found: true, type: "recaptcha2", siteKey: "6Lc..." }`
 
-### Step 2 — Solve via 2Captcha API
+If `found: false` but CAPTCHA is visually apparent, take a screenshot:
+```bash
+node /data/director/dispatch.js '{"mlProfileId":"...","clientId":"...","platform":"...","steps":[{"action":"screenshot","path":"/tmp/captcha-check.png"},{"action":"getPageText"}]}' --timeout 30
+```
+
+---
+
+### Step 2 — Log Before Solving (CRITICAL for crash recovery)
+
+Write a note to your workspace memory immediately:
+```
+memory/captcha-state.json:
+{
+  "captchaDetected": true,
+  "type": "recaptcha2",
+  "siteKey": "6Lc...",
+  "url": "https://...",
+  "ts": 1234567890
+}
+```
+
+---
+
+### Step 3 — Solve via 2Captcha API
+
 ```bash
 node /data/captcha/solve-captcha.js \
-  --type <CAPTCHA_TYPE> \
+  --type <TYPE> \
   --site-key <SITE_KEY> \
   --url <PAGE_URL> \
   --client-id <CLIENT_ID>
 ```
 
-**Type mapping from detectCaptcha:**
-| detectCaptcha type | --type flag |
-|--------------------|-------------|
-| recaptcha2         | recaptcha2  |
-| recaptcha3         | recaptcha3  |
-| hcaptcha           | hcaptcha    |
-| funcaptcha         | funcaptcha  |
-| turnstile          | turnstile   |
+**Output on success:**
+```json
+{"success":true,"token":"03ADUVZwXXX...","taskId":123456789}
+```
 
-**Returns:** `{ "success": true, "token": "03ADUVZw..." }`
+**Expected solve times:**
+| Type        | Typical wait |
+|-------------|-------------|
+| recaptcha2  | 15–30s      |
+| recaptcha3  | 8–15s       |
+| hcaptcha    | 10–20s      |
+| funcaptcha  | 20–40s      |
+| turnstile   | 3–8s        |
 
-Wait: reCAPTCHA takes ~20s, hCaptcha ~15s, FunCaptcha ~30s.
+**Error handling:**
 
-### Step 3 — Inject Token into Page
+| Error                      | Action                                   |
+|----------------------------|------------------------------------------|
+| `ERROR_NO_SLOT_AVAILABLE`  | Wait 30s, retry once                     |
+| `ERROR_ZERO_BALANCE`       | Stop — write to memory, skip task        |
+| `ERROR_CAPTCHA_UNSOLVABLE` | Retry once. If fails again, skip task    |
+| Timeout (3 min)            | Resubmit fresh call                      |
+
+---
+
+### Step 4 — Inject Token
+
 ```bash
 node /data/director/dispatch.js '{
   "mlProfileId": "<PROFILE_ID>",
   "clientId": "<CLIENT_ID>",
   "platform": "<PLATFORM>",
   "steps": [
-    {"action": "injectCaptchaToken", "token": "<TOKEN_FROM_STEP_2>", "captchaType": "<TYPE>"},
-    {"action": "wait", "ms": 1000},
+    {"action": "injectCaptchaToken", "token": "<TOKEN>", "captchaType": "<TYPE>"},
+    {"action": "wait", "ms": 1500},
     {"action": "click", "selector": "<SUBMIT_BUTTON_SELECTOR>"},
-    {"action": "wait", "ms": 2000},
+    {"action": "wait", "ms": 2500},
     {"action": "getPageText"}
   ]
 }' --timeout 60
 ```
 
-### Step 4 — Verify Success
-Check page text: if CAPTCHA error still shows, retry from Step 1 (max 3 attempts).
+### Step 5 — Verify Success
 
-## CAPTCHA Type Reference
+Check getPageText output: CAPTCHA text gone = success.
+If CAPTCHA still present: retry from Step 1 (max 3 attempts).
 
-### reCAPTCHA v2 (most common)
-- Appears as: checkbox "I'm not a robot" or image selection challenge
-- Command: `--type recaptcha2 --site-key <key> --url <url>`
-- Solution field: `token`
+---
 
-### hCaptcha
-- Appears as: hCaptcha image challenge (similar to reCAPTCHA)
-- Command: `--type hcaptcha --site-key <key> --url <url>`
+## TIMEOUT RECOVERY
 
-### FunCaptcha / Arkose Labs
-- Appears as: puzzle/rotation challenge (Microsoft uses this)
-- Microsoft Outlook public key: `B7D8911C-5CC8-A9A3-35B0-554ACEE604DA`
-- Command: `--type funcaptcha --site-key B7D8911C-5CC8-A9A3-35B0-554ACEE604DA --url https://signup.live.com`
+If session resumes and `memory/captcha-state.json` exists:
+1. Re-detect CAPTCHA on current page (`detectCaptcha` step)
+2. If still there → solve again from Step 3
+3. If gone → proceed normally, clean up captcha-state.json
 
-### Cloudflare Turnstile
-- Appears as: Cloudflare verification widget
-- Command: `--type turnstile --site-key <key> --url <url>`
+---
 
-## Quick Commands Reference
+## CAPTCHA TYPE REFERENCE
+
+| Type         | `--type` flag | Trigger signals                            | SiteKey location              |
+|--------------|---------------|--------------------------------------------|-------------------------------|
+| `recaptcha2` | recaptcha2    | `.g-recaptcha`, checkbox, image grid       | `data-sitekey` attribute      |
+| `recaptcha3` | recaptcha3    | Invisible, `api.js?render=KEY`             | Script URL param              |
+| `hcaptcha`   | hcaptcha      | `.h-captcha`, hCaptcha image puzzle        | `data-sitekey` attribute      |
+| `funcaptcha` | funcaptcha    | Arkose iframe, rotation puzzle             | Use known key below           |
+| `turnstile`  | turnstile     | `.cf-turnstile`, Cloudflare interstitial   | `data-sitekey` attribute      |
+
+### Known Public Keys
+| Platform                        | Type        | Public Key                               |
+|---------------------------------|-------------|------------------------------------------|
+| Microsoft (Outlook/Live/signup) | funcaptcha  | `B7D8911C-5CC8-A9A3-35B0-554ACEE604DA`  |
+| Twitter / X                     | funcaptcha  | `2CB16598-CB82-4CF7-B332-5990DB66F3AB`  |
+
+---
+
+## QUICK COMMAND REFERENCE
+
 ```bash
-# Detect CAPTCHA on current page (in dispatch step)
+# Detect
 {"action": "detectCaptcha"}
 
-# Solve reCAPTCHA v2
-node /data/captcha/solve-captcha.js --type recaptcha2 --site-key SITE_KEY --url PAGE_URL --client-id CLIENT_ID
+# Inject (in dispatch steps)
+{"action": "injectCaptchaToken", "token": "TOKEN_HERE", "captchaType": "recaptcha2"}
 
-# Solve Microsoft FunCaptcha
+# Solve reCAPTCHA v2
+node /data/captcha/solve-captcha.js --type recaptcha2 --site-key SITEKEY --url PAGE_URL --client-id CLIENT_ID
+
+# Solve Microsoft FunCaptcha (Outlook account creation)
 node /data/captcha/solve-captcha.js --type funcaptcha --site-key B7D8911C-5CC8-A9A3-35B0-554ACEE604DA --url https://signup.live.com --client-id CLIENT_ID
 
-# Inject token (in dispatch step)
-{"action": "injectCaptchaToken", "token": "TOKEN_HERE", "captchaType": "recaptcha2"}
+# Solve Twitter/X FunCaptcha
+node /data/captcha/solve-captcha.js --type funcaptcha --site-key 2CB16598-CB82-4CF7-B332-5990DB66F3AB --url https://twitter.com --client-id CLIENT_ID
+
+# Solve image CAPTCHA
+node /data/captcha/solve-captcha.js --type image --image-b64 BASE64DATA
 ```
