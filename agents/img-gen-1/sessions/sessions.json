@@ -1,7 +1,7 @@
 {
   "agent:img-gen-1:cron:919eddd9-5ee9-40b2-a29e-3b9a14aa3c92": {
-    "sessionId": "57fcfe9f-bdfe-473f-abeb-6ca2ea26125e",
-    "updatedAt": 1773476934044,
+    "sessionId": "136cfe77-82c7-496f-898f-46f06c90423a",
+    "updatedAt": 1773480538213,
     "systemSent": true,
     "label": "Cron: img-gen-1-queue-check",
     "skillsSnapshot": {
@@ -76,95 +76,11 @@
     "authProfileOverrideSource": "auto",
     "authProfileOverrideCompactionCount": 0,
     "contextTokens": 200000,
-    "inputTokens": 224,
-    "outputTokens": 85,
-    "totalTokens": 15537,
+    "inputTokens": 14000,
+    "outputTokens": 93,
+    "totalTokens": 15545,
     "totalTokensFresh": true,
-    "cacheRead": 30784,
-    "cacheWrite": 0
-  },
-  "agent:img-gen-1:cron:919eddd9-5ee9-40b2-a29e-3b9a14aa3c92:run:d121f3ba-8c6b-4acc-a471-605ebf6c37d3": {
-    "sessionId": "d121f3ba-8c6b-4acc-a471-605ebf6c37d3",
-    "updatedAt": 1773393759240,
-    "systemSent": true,
-    "label": "Cron: img-gen-1-queue-check",
-    "skillsSnapshot": {
-      "prompt": "\n\nThe following skills provide specialized instructions for specific tasks.\nUse the read tool to load a skill's file when the task matches its description.\nWhen a skill file references a relative path, resolve it against the skill directory (parent of SKILL.md / dirname of the path) and use that absolute path in tool commands.\n\n<available_skills>\n  <skill>\n    <name>clawhub</name>\n    <description>Use the ClawHub CLI to search, install, update, and publish agent skills from clawhub.com. Use when you need to fetch new skills on the fly, sync installed skills to latest or a specific version, or publish new/updated skill folders with the npm-installed clawhub CLI.</description>\n    <location>/usr/local/lib/node_modules/openclaw/skills/clawhub/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>healthcheck</name>\n    <description>Host security hardening and risk-tolerance configuration for OpenClaw deployments. Use when a user asks for security audits, firewall/SSH/update hardening, risk posture, exposure review, OpenClaw cron scheduling for periodic checks, or version status checks on a machine running OpenClaw (laptop, workstation, Pi, VPS).</description>\n    <location>/usr/local/lib/node_modules/openclaw/skills/healthcheck/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>himalaya</name>\n    <description>CLI to manage emails via IMAP/SMTP. Use `himalaya` to list, read, write, reply, forward, search, and organize emails from the terminal. Supports multiple accounts and message composition with MML (MIME Meta Language).</description>\n    <location>/usr/local/lib/node_modules/openclaw/skills/himalaya/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>skill-creator</name>\n    <description>Create or update AgentSkills. Use when designing, structuring, or packaging skills with scripts, references, and assets.</description>\n    <location>/usr/local/lib/node_modules/openclaw/skills/skill-creator/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>weather</name>\n    <description>Get current weather and forecasts via wttr.in or Open-Meteo. Use when: user asks about weather, temperature, or forecasts for any location. NOT for: historical weather data, severe weather alerts, or detailed meteorological analysis. No API key needed.</description>\n    <location>/usr/local/lib/node_modules/openclaw/skills/weather/SKILL.md</location>\n  </skill>\n</available_skills>",
-      "skills": [
-        {
-          "name": "clawhub",
-          "requiredEnv": []
-        },
-        {
-          "name": "healthcheck"
-        },
-        {
-          "name": "himalaya",
-          "requiredEnv": []
-        },
-        {
-          "name": "skill-creator"
-        },
-        {
-          "name": "weather",
-          "requiredEnv": []
-        }
-      ],
-      "resolvedSkills": [
-        {
-          "name": "clawhub",
-          "description": "Use the ClawHub CLI to search, install, update, and publish agent skills from clawhub.com. Use when you need to fetch new skills on the fly, sync installed skills to latest or a specific version, or publish new/updated skill folders with the npm-installed clawhub CLI.",
-          "filePath": "/usr/local/lib/node_modules/openclaw/skills/clawhub/SKILL.md",
-          "baseDir": "/usr/local/lib/node_modules/openclaw/skills/clawhub",
-          "source": "openclaw-bundled",
-          "disableModelInvocation": false
-        },
-        {
-          "name": "healthcheck",
-          "description": "Host security hardening and risk-tolerance configuration for OpenClaw deployments. Use when a user asks for security audits, firewall/SSH/update hardening, risk posture, exposure review, OpenClaw cron scheduling for periodic checks, or version status checks on a machine running OpenClaw (laptop, workstation, Pi, VPS).",
-          "filePath": "/usr/local/lib/node_modules/openclaw/skills/healthcheck/SKILL.md",
-          "baseDir": "/usr/local/lib/node_modules/openclaw/skills/healthcheck",
-          "source": "openclaw-bundled",
-          "disableModelInvocation": false
-        },
-        {
-          "name": "himalaya",
-          "description": "CLI to manage emails via IMAP/SMTP. Use `himalaya` to list, read, write, reply, forward, search, and organize emails from the terminal. Supports multiple accounts and message composition with MML (MIME Meta Language).",
-          "filePath": "/usr/local/lib/node_modules/openclaw/skills/himalaya/SKILL.md",
-          "baseDir": "/usr/local/lib/node_modules/openclaw/skills/himalaya",
-          "source": "openclaw-bundled",
-          "disableModelInvocation": false
-        },
-        {
-          "name": "skill-creator",
-          "description": "Create or update AgentSkills. Use when designing, structuring, or packaging skills with scripts, references, and assets.",
-          "filePath": "/usr/local/lib/node_modules/openclaw/skills/skill-creator/SKILL.md",
-          "baseDir": "/usr/local/lib/node_modules/openclaw/skills/skill-creator",
-          "source": "openclaw-bundled",
-          "disableModelInvocation": false
-        },
-        {
-          "name": "weather",
-          "description": "Get current weather and forecasts via wttr.in or Open-Meteo. Use when: user asks about weather, temperature, or forecasts for any location. NOT for: historical weather data, severe weather alerts, or detailed meteorological analysis. No API key needed.",
-          "filePath": "/usr/local/lib/node_modules/openclaw/skills/weather/SKILL.md",
-          "baseDir": "/usr/local/lib/node_modules/openclaw/skills/weather",
-          "source": "openclaw-bundled",
-          "disableModelInvocation": false
-        }
-      ],
-      "version": 0
-    },
-    "modelProvider": "openrouter",
-    "model": "qwen/qwen3-vl-30b-a3b-thinking",
-    "authProfileOverride": "openrouter:default",
-    "authProfileOverrideSource": "auto",
-    "authProfileOverrideCompactionCount": 0,
-    "contextTokens": 131072,
-    "inputTokens": 25058,
-    "outputTokens": 4117,
-    "totalTokens": 12534,
-    "totalTokensFresh": true,
-    "cacheRead": 0,
+    "cacheRead": 17024,
     "cacheWrite": 0
   },
   "agent:img-gen-1:cron:919eddd9-5ee9-40b2-a29e-3b9a14aa3c92:run:cf862226-0eba-4fa5-b5d3-297e3af3d050": {
@@ -9657,6 +9573,90 @@
     "totalTokens": 15537,
     "totalTokensFresh": true,
     "cacheRead": 30784,
+    "cacheWrite": 0
+  },
+  "agent:img-gen-1:cron:919eddd9-5ee9-40b2-a29e-3b9a14aa3c92:run:136cfe77-82c7-496f-898f-46f06c90423a": {
+    "sessionId": "136cfe77-82c7-496f-898f-46f06c90423a",
+    "updatedAt": 1773480538213,
+    "systemSent": true,
+    "label": "Cron: img-gen-1-queue-check",
+    "skillsSnapshot": {
+      "prompt": "\n\nThe following skills provide specialized instructions for specific tasks.\nUse the read tool to load a skill's file when the task matches its description.\nWhen a skill file references a relative path, resolve it against the skill directory (parent of SKILL.md / dirname of the path) and use that absolute path in tool commands.\n\n<available_skills>\n  <skill>\n    <name>clawhub</name>\n    <description>Use the ClawHub CLI to search, install, update, and publish agent skills from clawhub.com. Use when you need to fetch new skills on the fly, sync installed skills to latest or a specific version, or publish new/updated skill folders with the npm-installed clawhub CLI.</description>\n    <location>/usr/local/lib/node_modules/openclaw/skills/clawhub/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>healthcheck</name>\n    <description>Host security hardening and risk-tolerance configuration for OpenClaw deployments. Use when a user asks for security audits, firewall/SSH/update hardening, risk posture, exposure review, OpenClaw cron scheduling for periodic checks, or version status checks on a machine running OpenClaw (laptop, workstation, Pi, VPS).</description>\n    <location>/usr/local/lib/node_modules/openclaw/skills/healthcheck/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>himalaya</name>\n    <description>CLI to manage emails via IMAP/SMTP. Use `himalaya` to list, read, write, reply, forward, search, and organize emails from the terminal. Supports multiple accounts and message composition with MML (MIME Meta Language).</description>\n    <location>/usr/local/lib/node_modules/openclaw/skills/himalaya/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>skill-creator</name>\n    <description>Create or update AgentSkills. Use when designing, structuring, or packaging skills with scripts, references, and assets.</description>\n    <location>/usr/local/lib/node_modules/openclaw/skills/skill-creator/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>weather</name>\n    <description>Get current weather and forecasts via wttr.in or Open-Meteo. Use when: user asks about weather, temperature, or forecasts for any location. NOT for: historical weather data, severe weather alerts, or detailed meteorological analysis. No API key needed.</description>\n    <location>/usr/local/lib/node_modules/openclaw/skills/weather/SKILL.md</location>\n  </skill>\n</available_skills>",
+      "skills": [
+        {
+          "name": "clawhub",
+          "requiredEnv": []
+        },
+        {
+          "name": "healthcheck"
+        },
+        {
+          "name": "himalaya",
+          "requiredEnv": []
+        },
+        {
+          "name": "skill-creator"
+        },
+        {
+          "name": "weather",
+          "requiredEnv": []
+        }
+      ],
+      "resolvedSkills": [
+        {
+          "name": "clawhub",
+          "description": "Use the ClawHub CLI to search, install, update, and publish agent skills from clawhub.com. Use when you need to fetch new skills on the fly, sync installed skills to latest or a specific version, or publish new/updated skill folders with the npm-installed clawhub CLI.",
+          "filePath": "/usr/local/lib/node_modules/openclaw/skills/clawhub/SKILL.md",
+          "baseDir": "/usr/local/lib/node_modules/openclaw/skills/clawhub",
+          "source": "openclaw-bundled",
+          "disableModelInvocation": false
+        },
+        {
+          "name": "healthcheck",
+          "description": "Host security hardening and risk-tolerance configuration for OpenClaw deployments. Use when a user asks for security audits, firewall/SSH/update hardening, risk posture, exposure review, OpenClaw cron scheduling for periodic checks, or version status checks on a machine running OpenClaw (laptop, workstation, Pi, VPS).",
+          "filePath": "/usr/local/lib/node_modules/openclaw/skills/healthcheck/SKILL.md",
+          "baseDir": "/usr/local/lib/node_modules/openclaw/skills/healthcheck",
+          "source": "openclaw-bundled",
+          "disableModelInvocation": false
+        },
+        {
+          "name": "himalaya",
+          "description": "CLI to manage emails via IMAP/SMTP. Use `himalaya` to list, read, write, reply, forward, search, and organize emails from the terminal. Supports multiple accounts and message composition with MML (MIME Meta Language).",
+          "filePath": "/usr/local/lib/node_modules/openclaw/skills/himalaya/SKILL.md",
+          "baseDir": "/usr/local/lib/node_modules/openclaw/skills/himalaya",
+          "source": "openclaw-bundled",
+          "disableModelInvocation": false
+        },
+        {
+          "name": "skill-creator",
+          "description": "Create or update AgentSkills. Use when designing, structuring, or packaging skills with scripts, references, and assets.",
+          "filePath": "/usr/local/lib/node_modules/openclaw/skills/skill-creator/SKILL.md",
+          "baseDir": "/usr/local/lib/node_modules/openclaw/skills/skill-creator",
+          "source": "openclaw-bundled",
+          "disableModelInvocation": false
+        },
+        {
+          "name": "weather",
+          "description": "Get current weather and forecasts via wttr.in or Open-Meteo. Use when: user asks about weather, temperature, or forecasts for any location. NOT for: historical weather data, severe weather alerts, or detailed meteorological analysis. No API key needed.",
+          "filePath": "/usr/local/lib/node_modules/openclaw/skills/weather/SKILL.md",
+          "baseDir": "/usr/local/lib/node_modules/openclaw/skills/weather",
+          "source": "openclaw-bundled",
+          "disableModelInvocation": false
+        }
+      ],
+      "version": 0
+    },
+    "modelProvider": "openrouter",
+    "model": "openrouter/hunter-alpha",
+    "authProfileOverride": "openrouter:default",
+    "authProfileOverrideSource": "auto",
+    "authProfileOverrideCompactionCount": 0,
+    "contextTokens": 200000,
+    "inputTokens": 14000,
+    "outputTokens": 93,
+    "totalTokens": 15545,
+    "totalTokensFresh": true,
+    "cacheRead": 17024,
     "cacheWrite": 0
   }
 }

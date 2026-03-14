@@ -17,20 +17,20 @@
         "message": "CHECK_IMG_QUEUE: Check the image generation queue and process any pending requests. Run: node /data/img-gen/img-claim.js img-gen-1 — if a request is returned (not null), process it following your SOUL.md workflow. Generate the image in Gemini, download it, call img-complete.js when done, then check the queue again for more pending requests."
       },
       "state": {
-        "nextRunAtMs": 1773480538207,
-        "lastRunAtMs": 1773476934041,
+        "nextRunAtMs": 1773484162015,
+        "lastRunAtMs": 1773480538211,
         "lastRunStatus": "error",
         "lastStatus": "error",
-        "lastDurationMs": 4166,
+        "lastDurationMs": 23804,
         "lastDeliveryStatus": "unknown",
-        "consecutiveErrors": 5,
+        "consecutiveErrors": 6,
         "lastError": "No delivery target resolved for channel \"telegram\". Set delivery.to."
       },
       "wakeMode": "now",
       "delivery": {
         "mode": "announce"
       },
-      "updatedAtMs": 1773476938207
+      "updatedAtMs": 1773480562015
     },
     {
       "id": "062553b9-d784-4b0e-a48e-3a56fc479ad9",
@@ -48,20 +48,20 @@
         "message": "CHECK_IMG_QUEUE: Check the image generation queue and process any pending requests. Run: node /data/img-gen/img-claim.js img-gen-2 — if a request is returned (not null), process it following your SOUL.md workflow. Generate the image in Gemini, download it, call img-complete.js when done, then check the queue again for more pending requests."
       },
       "state": {
-        "nextRunAtMs": 1773478883733,
-        "lastRunAtMs": 1773477855422,
+        "nextRunAtMs": 1773482496305,
+        "lastRunAtMs": 1773478883738,
         "lastRunStatus": "error",
         "lastStatus": "error",
-        "lastDurationMs": 128311,
+        "lastDurationMs": 12567,
         "lastDeliveryStatus": "unknown",
-        "consecutiveErrors": 4,
+        "consecutiveErrors": 5,
         "lastError": "No delivery target resolved for channel \"telegram\". Set delivery.to."
       },
       "wakeMode": "now",
       "delivery": {
         "mode": "announce"
       },
-      "updatedAtMs": 1773477983733
+      "updatedAtMs": 1773478896305
     },
     {
       "id": "f206f716-3131-4a9c-ab7c-52d14e082898",
@@ -110,20 +110,20 @@
         "message": "CHECK_IMG_QUEUE: Check the image generation queue and process any pending requests. Run: node /data/img-gen/img-claim.js img-gen-4 — if a request is returned (not null), process it following your SOUL.md workflow. Generate the image in Gemini, download it, call img-complete.js when done, then check the queue again for more pending requests."
       },
       "state": {
-        "nextRunAtMs": 1773479618874,
-        "lastRunAtMs": 1773476004769,
+        "nextRunAtMs": 1773483233936,
+        "lastRunAtMs": 1773479618880,
         "lastRunStatus": "error",
         "lastStatus": "error",
-        "lastDurationMs": 14105,
+        "lastDurationMs": 15056,
         "lastDeliveryStatus": "unknown",
-        "consecutiveErrors": 8,
+        "consecutiveErrors": 9,
         "lastError": "No delivery target resolved for channel \"telegram\". Set delivery.to."
       },
       "wakeMode": "now",
       "delivery": {
         "mode": "announce"
       },
-      "updatedAtMs": 1773476018874
+      "updatedAtMs": 1773479633936
     },
     {
       "id": "7c404ad7-d06f-4777-9957-28c5b0982883",

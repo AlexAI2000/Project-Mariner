@@ -1,7 +1,7 @@
 {
   "agent:main:main": {
     "sessionId": "941938f5-10b6-48f1-80a5-5c0219c3f082",
-    "updatedAt": 1773477441258,
+    "updatedAt": 1773479245801,
     "systemSent": true,
     "abortedLastRun": false,
     "chatType": "direct",
@@ -91,7 +91,7 @@
     "contextTokens": 200000,
     "systemPromptReport": {
       "source": "run",
-      "generatedAt": 1773477425507,
+      "generatedAt": 1773479225416,
       "sessionId": "941938f5-10b6-48f1-80a5-5c0219c3f082",
       "sessionKey": "agent:main:main",
       "provider": "openrouter",
@@ -104,9 +104,9 @@
         "sandboxed": false
       },
       "systemPrompt": {
-        "chars": 31845,
+        "chars": 31868,
         "projectContextChars": 20330,
-        "nonProjectContextChars": 11515
+        "nonProjectContextChars": 11538
       },
       "injectedWorkspaceFiles": [
         {
@@ -320,12 +320,12 @@
         ]
       }
     },
-    "inputTokens": 16913,
-    "outputTokens": 101,
-    "cacheRead": 16960,
+    "inputTokens": 26266,
+    "outputTokens": 77,
+    "cacheRead": 256,
     "cacheWrite": 0,
     "totalTokensFresh": true,
-    "totalTokens": 17107
+    "totalTokens": 17108
   },
   "agent:main:telegram:direct:8506352732": {
     "origin": {
