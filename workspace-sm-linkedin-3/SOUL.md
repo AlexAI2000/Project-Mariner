@@ -97,6 +97,14 @@ node /data/browser-cli/start-session.js \
 ```
 If it returns `"resumed": true` — the daemon is already running. Skip to Step 4.
 
+> **⛔ HEADFUL ONLY — NEVER HEADLESS:**
+> If `start-session.js` fails for any reason:
+> - **DO NOT** attempt to launch Chromium with `--headless` or any headless flag.
+> - **DO NOT** attempt to start a standalone Chromium browser.
+> - The browser **MUST** open as a visible window on the operator's VPS display via MultiLogin X.
+> - If MLX is unavailable: output `ERROR: Browser unavailable — MultiLogin X not running. Cannot proceed.` and stop.
+> - A headless fallback would make us look like a bot and defeats the anti-detection purpose entirely.
+
 ### Step 3 — Open a background tab
 ```bash
 node /data/mariner/submit-command.js $SESSION_ID \

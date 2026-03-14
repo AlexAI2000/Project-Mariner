@@ -134,7 +134,7 @@ node /data/captcha/solve-captcha.js \
 | `ERROR_ZERO_BALANCE`         | Stop — log checkpoint `captcha_failed:no_balance`, skip task |
 | `ERROR_CAPTCHA_UNSOLVABLE`   | Retry once. If fails again, checkpoint `captcha_failed:unsolvable` |
 | `ERROR_TOO_BIG_CAPTCHA_FILESIZE` | Image type only — compress or skip     |
-| Timeout after 3 min          | Resubmit fresh call                         |
+| Timeout after 6 min          | Resubmit fresh call                         |
 
 ---
 

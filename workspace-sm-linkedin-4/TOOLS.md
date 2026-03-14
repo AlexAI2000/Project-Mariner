@@ -1,5 +1,21 @@
 # TOOLS.md — LinkedIn Browser Operator
 
+## MANDATORY: HEADFUL BROWSER ONLY — NO HEADLESS
+
+> **CRITICAL RULE: You MUST NEVER launch Chromium or any browser in headless mode.**
+> The browser MUST always be visible on the VPS display so the operator can monitor it.
+> Headless browsers look like bots and defeat the entire purpose of MultiLogin X.
+
+### If start-session.js fails:
+
+1. **DO NOT** fall back to `chromium --headless` or any headless flag. This is forbidden.
+2. Check if the MLX profile exists: `node /data/executor/pa-lookup.js $ACCOUNT_ID linkedin`
+3. If MLX launcher is down, **STOP and report** — never improvise with headless Chromium.
+4. Output: `ERROR: Cannot start browser — MultiLogin X unavailable. Operator must restart MLX.`
+
+---
+
+
 ## Browser CLI
 
 The primary interface for all browser actions. Every command communicates with the

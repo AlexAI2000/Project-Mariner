@@ -117,7 +117,7 @@ node /data/captcha/solve-captcha.js \
 | `ERROR_NO_SLOT_AVAILABLE`  | Wait 30s, retry once                     |
 | `ERROR_ZERO_BALANCE`       | Stop — write to memory, skip task        |
 | `ERROR_CAPTCHA_UNSOLVABLE` | Retry once. If fails again, skip task    |
-| Timeout (3 min)            | Resubmit fresh call                      |
+| Timeout (6 min)            | Resubmit fresh call                      |
 
 ---
 

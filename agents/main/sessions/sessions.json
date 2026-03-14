@@ -1,7 +1,7 @@
 {
   "agent:main:main": {
     "sessionId": "941938f5-10b6-48f1-80a5-5c0219c3f082",
-    "updatedAt": 1773484640578,
+    "updatedAt": 1773486431102,
     "systemSent": true,
     "abortedLastRun": false,
     "chatType": "direct",
@@ -91,7 +91,7 @@
     "contextTokens": 200000,
     "systemPromptReport": {
       "source": "run",
-      "generatedAt": 1773484625310,
+      "generatedAt": 1773486425384,
       "sessionId": "941938f5-10b6-48f1-80a5-5c0219c3f082",
       "sessionKey": "agent:main:main",
       "provider": "openrouter",
@@ -320,8 +320,8 @@
         ]
       }
     },
-    "inputTokens": 16993,
-    "outputTokens": 101,
+    "inputTokens": 161,
+    "outputTokens": 87,
     "cacheRead": 17024,
     "cacheWrite": 0,
     "totalTokensFresh": true,
