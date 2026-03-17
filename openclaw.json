@@ -1,7 +1,55 @@
 {
+  "plugins": {
+    "allow": [
+      "whatsapp",
+      "discord",
+      "telegram",
+      "slack",
+      "nostr",
+      "googlechat"
+    ],
+    "entries": {
+      "whatsapp": {
+        "enabled": true
+      },
+      "discord": {
+        "enabled": true
+      },
+      "imessage": {
+        "enabled": false
+      },
+      "telegram": {
+        "enabled": true
+      },
+      "slack": {
+        "enabled": true
+      },
+      "nostr": {
+        "enabled": true
+      },
+      "signal": {
+        "enabled": false
+      },
+      "googlechat": {
+        "enabled": true
+      }
+    }
+  },
+  "channels": {
+    "telegram": {
+      "dmPolicy": "allowlist",
+      "groupPolicy": "allowlist",
+      "streaming": "off",
+      "botToken": "8498790069:AAHA0rFxqbd4uugFtsUmmMjwTvZsOeMQaoc",
+      "enabled": true,
+      "allowFrom": [
+        "8506352732"
+      ]
+    }
+  },
   "meta": {
     "lastTouchedVersion": "2026.3.1",
-    "lastTouchedAt": "2026-03-14T13:08:31.185Z"
+    "lastTouchedAt": "2026-03-17T18:04:00.686Z"
   },
   "wizard": {
     "lastRunAt": "2026-03-06T15:42:55.936Z",
@@ -490,18 +538,6 @@
   "hooks": {
     "token": "hooks_9O0IWy8zIq5tGAIEC5YrF9MXxZlhiEbq"
   },
-  "channels": {
-    "telegram": {
-      "enabled": true,
-      "dmPolicy": "allowlist",
-      "botToken": "8498790069:AAHA0rFxqbd4uugFtsUmmMjwTvZsOeMQaoc",
-      "allowFrom": [
-        "8506352732"
-      ],
-      "groupPolicy": "allowlist",
-      "streaming": "off"
-    }
-  },
   "gateway": {
     "port": 18789,
     "mode": "local",
@@ -524,42 +560,6 @@
     },
     "remote": {
       "token": "9O0IWy8zIq5tGAIEC5YrF9MXxZlhiEbq"
-    }
-  },
-  "plugins": {
-    "allow": [
-      "whatsapp",
-      "discord",
-      "telegram",
-      "slack",
-      "nostr",
-      "googlechat"
-    ],
-    "entries": {
-      "whatsapp": {
-        "enabled": true
-      },
-      "discord": {
-        "enabled": true
-      },
-      "imessage": {
-        "enabled": false
-      },
-      "telegram": {
-        "enabled": true
-      },
-      "slack": {
-        "enabled": true
-      },
-      "nostr": {
-        "enabled": true
-      },
-      "signal": {
-        "enabled": false
-      },
-      "googlechat": {
-        "enabled": true
-      }
     }
   }
 }
