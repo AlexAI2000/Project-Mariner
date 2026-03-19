@@ -1,0 +1,28 @@
+{
+  "_comment": "Google account config for img-gen agents. For each agent, add the MultiLogin X profile UUID + folder UUID that has the Google account pre-logged-in in Gemini. Find the UUID in the MultiLogin X web interface.",
+  "img-gen-1": {
+    "mlProfileId": "REPLACE-WITH-MULTILOGIN-PROFILE-UUID-1",
+    "folderId": "REPLACE-WITH-MULTILOGIN-FOLDER-UUID",
+    "googleEmail": "your-google-account-1@gmail.com"
+  },
+  "img-gen-2": {
+    "mlProfileId": "REPLACE-WITH-MULTILOGIN-PROFILE-UUID-2",
+    "folderId": "REPLACE-WITH-MULTILOGIN-FOLDER-UUID",
+    "googleEmail": "your-google-account-2@gmail.com"
+  },
+  "img-gen-3": {
+    "mlProfileId": "REPLACE-WITH-MULTILOGIN-PROFILE-UUID-3",
+    "folderId": "REPLACE-WITH-MULTILOGIN-FOLDER-UUID",
+    "googleEmail": "your-google-account-3@gmail.com"
+  },
+  "img-gen-4": {
+    "mlProfileId": "REPLACE-WITH-MULTILOGIN-PROFILE-UUID-4",
+    "folderId": "REPLACE-WITH-MULTILOGIN-FOLDER-UUID",
+    "googleEmail": "your-google-account-4@gmail.com"
+  },
+  "img-gen-5": {
+    "mlProfileId": "REPLACE-WITH-MULTILOGIN-PROFILE-UUID-5",
+    "folderId": "REPLACE-WITH-MULTILOGIN-FOLDER-UUID",
+    "googleEmail": "your-google-account-5@gmail.com"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "_comment": "2Captcha configuration. Get your API key at https://2captcha.com/",
+  "apiKey": "40075793b70576927e936326bd809689",
+  "baseUrl": "https://api.2captcha.com",
+  "pollIntervalMs": 5000,
+  "maxWaitMs": 360000,
+  "useProxy": true
+}

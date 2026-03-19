@@ -1,0 +1,12 @@
+autouploadlogenabled: true
+cliautoupdate: true
+phonelauncherpath: /home/kasm-user/mlx/deps/phone_launcher/phone_launcher_linux_amd64
+scriptrunnerpath: /home/kasm-user/mlx/deps/script_runner/script_runner_linux_amd64.bin
+scriptsdirpath: /home/kasm-user/mlx/deps/scripts
+# Extra flags injected into every Mimic/browser launch to prevent SIGTRAP in containers
+browserExtraFlags:
+  - --no-sandbox
+  - --disable-setuid-sandbox
+  - --disable-dev-shm-usage
+  - --disable-gpu-sandbox
+  - --no-zygote

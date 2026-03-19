@@ -1,0 +1,329 @@
+{
+  "mdm-test-001": {
+    "briefing": "Test briefing"
+  },
+  "mdm-13c5a85f": {
+    "name": "Melany Pawn",
+    "phone": null,
+    "proxy": null,
+    "email": null,
+    "mlProfiles": {
+      "linkedin": {
+        "profileId": "0c6c8b45-6317-44b3-8ed4-e3c5f3a26dd1",
+        "folderId": "3d1d4dee-4839-49fc-a414-616b069c9fbf"
+      }
+    },
+    "credentials": {},
+    "briefing": {
+      "name": "Melany Pawn",
+      "platform": "linkedin",
+      "oneLineSummary": "AI Specialist | Very on | Salesforce Executive | AI, and Business",
+      "updatedAt": "2026-03-09T12:09:11.693Z"
+    },
+    "profileContent": null
+  },
+  "mdm-test-fix": {
+    "name": "mdm-test-fix",
+    "phone": null,
+    "proxy": null,
+    "email": null,
+    "mlProfiles": {},
+    "credentials": {},
+    "briefing": null,
+    "profileContent": null
+  },
+  "mdm-clean-001": {
+    "name": "Melany Pawn",
+    "phone": null,
+    "proxy": null,
+    "email": null,
+    "mlProfiles": {
+      "linkedin": {
+        "profileId": "8a153567-eb3b-490a-accc-33f350d18796",
+        "folderId": "3d1d4dee-4839-49fc-a414-616b069c9fbf"
+      }
+    },
+    "credentials": {},
+    "briefing": {
+      "name": "Melany Pawn",
+      "platform": "linkedin",
+      "oneLineSummary": "AI Specialist | Salesforce Executive | AI, and Business",
+      "updatedAt": "2026-03-09T11:39:18.092Z"
+    },
+    "profileContent": null
+  },
+  "mdm-final-001": {
+    "name": "Melany Pawn",
+    "phone": null,
+    "proxy": null,
+    "email": null,
+    "mlProfiles": {},
+    "credentials": {},
+    "briefing": null,
+    "profileContent": null
+  },
+  "mdm-b997ca70": {
+    "name": "Johnny Doe",
+    "phone": null,
+    "proxy": {
+      "type": "http",
+      "host": "gate.multilogin.com",
+      "port": 8080,
+      "login": "2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-Yd4ggH8kqJ8-ttl-24h-filter-medium",
+      "password": "d7604f82727b8972ce71ca4e8d96fd0d",
+      "connectionUrl": "gate.multilogin.com:8080:2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-Yd4ggH8kqJ8-ttl-24h-filter-medium:d7604f82727b8972ce71ca4e8d96fd0d"
+    },
+    "email": null,
+    "mlProfiles": {
+      "linkedin": {
+        "profileId": "43fb31a3-bc24-481e-8dbf-78edf1d3be5d",
+        "folderId": "3d1d4dee-4839-49fc-a414-616b069c9fbf"
+      }
+    },
+    "credentials": {},
+    "briefing": {
+      "name": "John Doe",
+      "platform": "linkedin",
+      "oneLineSummary": "Create a LinkedIn account for John Doe.",
+      "updatedAt": "2026-03-14T11:48:53.582Z"
+    },
+    "profileContent": null
+  },
+  "mdm-a1b2c3d4": {
+    "name": "Sarah Johnson",
+    "phone": null,
+    "proxy": {
+      "type": "http",
+      "host": "gate.multilogin.com",
+      "port": 8080,
+      "login": "2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-IShNIbi6-ttl-24h-filter-medium",
+      "password": "d7604f82727b8972ce71ca4e8d96fd0d",
+      "connectionUrl": "gate.multilogin.com:8080:2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-IShNIbi6-ttl-24h-filter-medium:d7604f82727b8972ce71ca4e8d96fd0d"
+    },
+    "email": null,
+    "mlProfiles": {
+      "linkedin": {
+        "profileId": "fb954201-b74b-469b-aa2b-b8f179354d49",
+        "folderId": "3d1d4dee-4839-49fc-a414-616b069c9fbf"
+      },
+      "outlook": {
+        "profileId": "8c04d806-43a4-4c74-b819-58fd34559cec",
+        "folderId": "3d1d4dee-4839-49fc-a414-616b069c9fbf"
+      }
+    },
+    "credentials": {
+      "outlook": {
+        "provider": "outlook",
+        "address": "sarah.johnson@outlook.com",
+        "password": "TempPassword123!"
+      }
+    },
+    "briefing": {
+      "name": "Sarah Johnson",
+      "platform": "linkedin",
+      "oneLineSummary": {
+        "oneLineSummary": "Create LinkedIn for Sarah Johnson senior marketing executive",
+        "firstName": "Sarah",
+        "lastName": "Johnson",
+        "headline": "Senior Marketing Executive B2B Growth Specialist",
+        "email": "sarah.johnson.mktg@outlook.com",
+        "password": "SecurePass2024"
+      },
+      "headline": "Senior SaaS Marketing Executive",
+      "bio": "10 plus years in B2B SaaS",
+      "skills": "B2B Sales, Growth Marketing, SaaS",
+      "updatedAt": "2026-03-11T16:49:18.860Z",
+      "workHistory": "VP Marketing at TechCorp"
+    },
+    "profileContent": null,
+    "updatedAt": "2026-03-11T15:52:45.463Z"
+  },
+  "mdm-test-new-001": {
+    "name": "Marcus Reid",
+    "phone": null,
+    "proxy": {
+      "type": "http",
+      "host": "gate.multilogin.com",
+      "port": 8080,
+      "login": "2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-wCFfxtdrMKt-ttl-24h-filter-medium",
+      "password": "d7604f82727b8972ce71ca4e8d96fd0d",
+      "connectionUrl": "gate.multilogin.com:8080:2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-wCFfxtdrMKt-ttl-24h-filter-medium:d7604f82727b8972ce71ca4e8d96fd0d"
+    },
+    "email": null,
+    "mlProfiles": {
+      "linkedin": {
+        "profileId": "f81808ee-f7c7-4320-9db0-8fc67066714a",
+        "folderId": "3d1d4dee-4839-49fc-a414-616b069c9fbf"
+      }
+    },
+    "credentials": {},
+    "briefing": {
+      "name": "Marcus Reid",
+      "platform": "linkedin",
+      "oneLineSummary": "New test account — verify proxy and profile creation",
+      "headline": "B2B Sales Leader",
+      "bio": "15 years in enterprise sales",
+      "skills": "Enterprise Sales, SaaS, B2B",
+      "updatedAt": "2026-03-11T15:12:25.974Z"
+    },
+    "profileContent": null
+  },
+  "sarah-johnson": {
+    "name": "sarah-johnson",
+    "phone": null,
+    "proxy": {
+      "type": "http",
+      "host": "gate.multilogin.com",
+      "port": 8080,
+      "login": "2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-zhITYWRo7Cs7gXt3R6sC-ttl-24h-filter-medium",
+      "password": "d7604f82727b8972ce71ca4e8d96fd0d",
+      "connectionUrl": "gate.multilogin.com:8080:2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-zhITYWRo7Cs7gXt3R6sC-ttl-24h-filter-medium:d7604f82727b8972ce71ca4e8d96fd0d"
+    },
+    "email": null,
+    "mlProfiles": {
+      "outlook": {
+        "profileId": "c1c3da00-88a8-4c81-9cc9-cb21a56ed271",
+        "folderId": "3d1d4dee-4839-49fc-a414-616b069c9fbf"
+      }
+    },
+    "credentials": {},
+    "briefing": null,
+    "profileContent": null
+  },
+  "captcha-test-001": {
+    "name": "Test Client",
+    "phone": null,
+    "proxy": {
+      "type": "http",
+      "host": "gate.multilogin.com",
+      "port": 8080,
+      "login": "2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-1zdBvaNrnR46Hgn8UO-ttl-24h-filter-medium",
+      "password": "d7604f82727b8972ce71ca4e8d96fd0d",
+      "connectionUrl": "gate.multilogin.com:8080:2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-1zdBvaNrnR46Hgn8UO-ttl-24h-filter-medium:d7604f82727b8972ce71ca4e8d96fd0d"
+    },
+    "email": null,
+    "mlProfiles": {
+      "microsoft": {
+        "profileId": "18fc9c89-2d7b-4d8c-9179-bc8c263eb599",
+        "folderId": "3d1d4dee-4839-49fc-a414-616b069c9fbf"
+      }
+    },
+    "credentials": {},
+    "briefing": {
+      "name": "Test Client",
+      "platform": "microsoft",
+      "oneLineSummary": {
+        "purpose": "CAPTCHA integration test — Microsoft Outlook account creation with FunCaptcha solve"
+      },
+      "updatedAt": "2026-03-14T10:53:51.938Z"
+    },
+    "profileContent": null
+  },
+  "captcha-test-002": {
+    "name": "Test Client",
+    "phone": null,
+    "proxy": {
+      "type": "http",
+      "host": "gate.multilogin.com",
+      "port": 8080,
+      "login": "2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-JdZS4HgMvX-ttl-24h-filter-medium",
+      "password": "d7604f82727b8972ce71ca4e8d96fd0d",
+      "connectionUrl": "gate.multilogin.com:8080:2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-JdZS4HgMvX-ttl-24h-filter-medium:d7604f82727b8972ce71ca4e8d96fd0d"
+    },
+    "email": null,
+    "mlProfiles": {
+      "microsoft": {
+        "profileId": "cfb2766e-d0f1-4667-9375-de07e41a0d4b",
+        "folderId": "3d1d4dee-4839-49fc-a414-616b069c9fbf"
+      }
+    },
+    "credentials": {},
+    "briefing": {
+      "name": "Test Client",
+      "platform": "microsoft",
+      "oneLineSummary": {
+        "purpose": "CAPTCHA integration test — Microsoft Outlook account creation with FunCaptcha solve"
+      },
+      "updatedAt": "2026-03-14T10:56:28.561Z"
+    },
+    "profileContent": null
+  },
+  "Lucy": {
+    "name": "Lucy",
+    "phone": null,
+    "proxy": {
+      "type": "http",
+      "host": "gate.multilogin.com",
+      "port": 8080,
+      "login": "2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-ZKkqbF3Q2v24YYooFlM5-ttl-24h-filter-medium",
+      "password": "d7604f82727b8972ce71ca4e8d96fd0d",
+      "connectionUrl": "gate.multilogin.com:8080:2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-ZKkqbF3Q2v24YYooFlM5-ttl-24h-filter-medium:d7604f82727b8972ce71ca4e8d96fd0d"
+    },
+    "email": null,
+    "mlProfiles": {
+      "linkedin": {
+        "profileId": "4b3ff745-a96c-4c0d-81c9-67a759f3ee35",
+        "folderId": "3d1d4dee-4839-49fc-a414-616b069c9fbf"
+      }
+    },
+    "credentials": {},
+    "briefing": null,
+    "profileContent": null
+  },
+  "John": {
+    "name": "John",
+    "phone": null,
+    "proxy": {
+      "type": "http",
+      "host": "gate.multilogin.com",
+      "port": 8080,
+      "login": "2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-eKUjQaBw4K13IIA-ttl-24h-filter-medium",
+      "password": "d7604f82727b8972ce71ca4e8d96fd0d",
+      "connectionUrl": "gate.multilogin.com:8080:2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-eKUjQaBw4K13IIA-ttl-24h-filter-medium:d7604f82727b8972ce71ca4e8d96fd0d"
+    },
+    "email": null,
+    "mlProfiles": {
+      "linkedin": {
+        "profileId": "7a2514be-70de-4da6-9c97-f4253c886fda",
+        "folderId": "3d1d4dee-4839-49fc-a414-616b069c9fbf"
+      }
+    },
+    "credentials": {},
+    "briefing": null,
+    "profileContent": null
+  },
+  "Melissa": {
+    "name": "Melissa",
+    "phone": null,
+    "proxy": {
+      "type": "http",
+      "host": "gate.multilogin.com",
+      "port": 8080,
+      "login": "2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-GnLZJJPgxk00JCRvasV-ttl-24h-filter-medium",
+      "password": "d7604f82727b8972ce71ca4e8d96fd0d",
+      "connectionUrl": "gate.multilogin.com:8080:2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-GnLZJJPgxk00JCRvasV-ttl-24h-filter-medium:d7604f82727b8972ce71ca4e8d96fd0d"
+    },
+    "email": null,
+    "mlProfiles": {},
+    "credentials": {},
+    "briefing": null,
+    "profileContent": null
+  },
+  "eb6a4287-c641-40eb-8136-22741254b8b1": {
+    "name": "eb6a4287-c641-40eb-8136-22741254b8b1",
+    "phone": null,
+    "proxy": {
+      "type": "http",
+      "host": "gate.multilogin.com",
+      "port": 8080,
+      "login": "2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-sS1eVPSsEAmvaH6ZX-ttl-24h-filter-medium",
+      "password": "d7604f82727b8972ce71ca4e8d96fd0d",
+      "connectionUrl": "gate.multilogin.com:8080:2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-sS1eVPSsEAmvaH6ZX-ttl-24h-filter-medium:d7604f82727b8972ce71ca4e8d96fd0d"
+    },
+    "email": null,
+    "mlProfiles": {},
+    "credentials": {},
+    "briefing": null,
+    "profileContent": null
+  }
+}

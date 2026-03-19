@@ -1,0 +1,30 @@
+# ── Approach: allowlist. Only explicitly listed dirs/files are tracked. ─────────
+# Default: ignore everything, then un-ignore what matters.
+/*
+!.gitignore
+
+# ── Code directories to track ─────────────────────────────────────────────────
+!browser-cli/
+!executor/
+!clients/
+!multilogin/
+!director/
+!content-generators/
+!captcha/
+!mariner/
+!configs/
+!img-gen/
+
+# ── Key top-level files ────────────────────────────────────────────────────────
+!gate.js
+!github-sync.sh
+!setup-human-browser.sh
+!setup-browser-assistance.sh
+!SLICER-RELAY-GATE-API.md
+
+# ── Within tracked dirs: exclude sensitive / generated files ──────────────────
+clients/clients.json
+clients/clients.json.tmp
+multilogin/token-cache.json
+multilogin/open-profiles.json
+img-gen/google-accounts.json

@@ -1,0 +1,9 @@
+{
+  "name": "browser-cli",
+  "version": "1.0.0",
+  "description": "Humanized Playwright Browser CLI — per-session daemon + agent CLI interface",
+  "type": "module",
+  "scripts": {
+    "test": "node exec.js status --session test-session"
+  }
+}
