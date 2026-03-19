@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# github-sync-code.sh — Auto-sync VPS code files to GitHub (vps-code branch)
-# Runs every 30 minutes via cron alongside github-sync.sh.
+# github-sync-code.sh — Sync VPS code to GitHub (vps-code branch).
+# ADD-ONLY: never propagates deletions. If files are deleted on VPS,
+# they stay safe on GitHub until explicitly removed.
 #
-# Repo:    https://github.com/AlexAI2000/Project-Mariner (vps-code branch)
-# WorkDir: /docker/openclaw-mrdz/data
+# Repo: https://github.com/AlexAI2000/Project-Mariner (vps-code branch)
 
 set -euo pipefail
 
@@ -18,13 +18,19 @@ export GIT_AUTHOR_EMAIL="ops@projectmariner.ai"
 export GIT_COMMITTER_NAME="Project Mariner Head of Ops"
 export GIT_COMMITTER_EMAIL="ops@projectmariner.ai"
 
-log() {
-  echo "[${TIMESTAMP}] $*" | tee -a "$LOG_FILE"
-}
+log() { echo "[${TIMESTAMP}] $*" | tee -a "$LOG_FILE"; }
 
 log "=== Code sync starting ==="
 
+# Stage new and modified files only
 git add -A
+
+# UN-STAGE any deletions — add-only policy, never remove from GitHub
+DELETED=$(git diff --cached --name-only --diff-filter=D 2>/dev/null || true)
+if [ -n "$DELETED" ]; then
+  log "Skipping deletions (add-only policy): $(echo "$DELETED" | tr '\n' ' ')"
+  git restore --staged $DELETED 2>/dev/null || true
+fi
 
 if git diff --cached --quiet; then
   log "No changes — nothing to commit."
@@ -32,11 +38,10 @@ if git diff --cached --quiet; then
 fi
 
 CHANGED=$(git diff --cached --name-only | wc -l)
-log "Committing ${CHANGED} changed file(s)..."
-
-git commit -m "Auto-sync code: ${TIMESTAMP} (${CHANGED} files changed)"
+log "Committing ${CHANGED} file(s)..."
+git commit -m "Auto-sync code: ${TIMESTAMP} (${CHANGED} files)"
 
 log "Pushing to GitHub (vps-code)..."
 git push origin vps-code
 
-log "=== Code sync complete ==="
+log "=== Sync complete ==="
