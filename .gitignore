@@ -18,9 +18,13 @@
 # ── Key top-level files ────────────────────────────────────────────────────────
 !gate.js
 !github-sync.sh
+!github-sync-code.sh
 !setup-human-browser.sh
 !setup-browser-assistance.sh
 !SLICER-RELAY-GATE-API.md
+
+# ── Additional code directories ────────────────────────────────────────────────
+!accounts/
 
 # ── Within tracked dirs: exclude sensitive / generated files ──────────────────
 clients/clients.json
