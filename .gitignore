@@ -21,6 +21,7 @@
 !github-sync-code.sh
 !setup-human-browser.sh
 !setup-browser-assistance.sh
+!session-upload.sh
 !SLICER-RELAY-GATE-API.md
 
 # ── Additional code directories ────────────────────────────────────────────────
