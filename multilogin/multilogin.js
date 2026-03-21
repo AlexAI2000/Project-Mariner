@@ -246,6 +246,48 @@ export async function startProfile(profileId, folderId = null) {
           process.stderr.write(`[multilogin] Using cached cdpUrl from registry for ${profileId}\n`);
           return entry.cdpUrl;
         }
+        // Last resort: ask the CDP proxy to find the port by scanning running processes
+        process.stderr.write(`[multilogin] /running endpoint unavailable — trying CDP proxy port discovery\n`);
+        try {
+          const findRes = await fetch(
+            `http://${ML_CDP_HOST}:${CDP_PROXY_PORT}/find-port?profile_id=${encodeURIComponent(profileId)}`,
+            { signal: AbortSignal.timeout(8000) }
+          );
+          if (findRes.ok) {
+            const findData = await findRes.json();
+            const discoveredPort = findData.port;
+            if (discoveredPort) {
+              process.stderr.write(`[multilogin] CDP proxy discovered port ${discoveredPort} for profile ${profileId}\n`);
+              // Register CDP proxy forwards for this discovered port
+              const externalCdpPort = discoveredPort + CDP_PORT_OFFSET;
+              for (const extPort of [externalCdpPort, FIXED_OPENCLAW_CDP_PORT]) {
+                await fetch(`http://${ML_CDP_HOST}:${CDP_PROXY_PORT}/forward`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ localPort: discoveredPort, externalPort: extPort }),
+                  signal: AbortSignal.timeout(8000),
+                }).catch(() => {});
+              }
+              await sleep(1000);
+              // Fetch CDP wsUrl
+              const versionUrl = `http://${ML_CDP_HOST}:${externalCdpPort}/json/version`;
+              const versionRes = await fetch(versionUrl, { signal: AbortSignal.timeout(8000) });
+              if (versionRes.ok) {
+                const versionData = await versionRes.json();
+                let cdpUrl = versionData.webSocketDebuggerUrl;
+                if (cdpUrl) {
+                  cdpUrl = cdpUrl.replace(/127\.0\.0\.1:\d+/, `${ML_CDP_HOST}:${externalCdpPort}`);
+                  cdpUrl = cdpUrl.replace(/127\.0\.0\.1/, ML_CDP_HOST);
+                  writeRegistry(profileId, discoveredPort, cdpUrl);
+                  process.stderr.write(`[multilogin] Profile ${profileId} CDP (discovered): ${cdpUrl}\n`);
+                  return cdpUrl;
+                }
+              }
+            }
+          }
+        } catch (e3) {
+          process.stderr.write(`[multilogin] CDP proxy port discovery failed: ${e3.message}\n`);
+        }
         throw new Error(
           `Profile ${profileId} is already running but cannot get its port. ` +
           `Try stopping it first: openclaw or MultiLogin X dashboard. ` +
@@ -532,8 +574,28 @@ export async function listProfiles(folderId = null) {
     data = await cloudPost('/profile/search', { folder_id: folder, search_text: '' }, token);
   }
 
-  // Normalize — different API versions return different shapes
-  return data?.data || data?.profiles || (Array.isArray(data) ? data : []);
+  // Normalize — different API versions return different shapes:
+  //   { data: [...] }              (GET /profile, newer API)
+  //   { data: { profiles: [...] } } (POST /profile/search, some versions)
+  //   { profiles: [...] }          (POST /profile/search, older versions)
+  //   [...]                        (bare array)
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.data?.profiles)) return data.data.profiles;
+  if (Array.isArray(data?.profiles)) return data.profiles;
+  return [];
+}
+
+// Find a profile by its display name (case-insensitive).
+// Returns the profile object (with at least { id, folder_id, name }) or null.
+export async function findProfileByName(name, folderId = null) {
+  const profiles = await listProfiles(folderId);
+  const list = Array.isArray(profiles) ? profiles : [];
+  const match = list.find(p => (p.name || '').toLowerCase() === name.toLowerCase());
+  if (match) {
+    process.stderr.write(`[multilogin] findProfileByName(${name}): found profile ${match.id || match.profile_id}\n`);
+  }
+  return match || null;
 }
 
 // Find a profile whose notes field contains the given accountId.

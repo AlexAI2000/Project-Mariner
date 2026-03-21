@@ -615,6 +615,89 @@ async function handleProvisionProfile(req, res) {
   }
 }
 
+// POST /api/v1/generate-post
+// Drives the PhantomWriter browser UI to generate a LinkedIn lead magnet post.
+// Uses the named MLX browser profile (already logged in). Fires callback_url with the generated post.
+async function handleGeneratePost(req, res) {
+  let body;
+  try { body = await readBody(req); }
+  catch (e) { return err(res, 400, e.message); }
+
+  if (!checkMarinerAuth(req, body)) {
+    return err(res, 401, 'Unauthorized — invalid auth_token');
+  }
+
+  const mlxProfileName = body.mlx_profile_name;
+  const resourceType = body.resource_type;
+  const resourceOutline = body.resource_outline || '';
+  const regenerateInput = body.regenerate_input || '';
+  const callbackUrl = body.callback_url;
+  const callbackMetadata = body.callback_metadata || {};
+  const executionId = callbackMetadata.execution_id || randomUUID();
+
+  if (!mlxProfileName) return err(res, 400, 'mlx_profile_name is required');
+  if (!resourceType) return err(res, 400, 'resource_type is required');
+  if (!resourceOutline && !regenerateInput) {
+    return err(res, 400, 'resource_outline is required (or regenerate_input for a standalone regeneration)');
+  }
+  if (!callbackUrl) return err(res, 400, 'callback_url is required');
+
+  const validTypes = ['info_document', 'automation_workflow', 'video_masterclass', 'mail_report', 'database', 'software'];
+  if (!validTypes.includes(resourceType)) {
+    return err(res, 400, `resource_type must be one of: ${validTypes.join(', ')}`);
+  }
+
+  if (!isAllowedCallbackUrl(callbackUrl)) {
+    return err(res, 400, 'callback_url must be an HTTPS URL pointing to an allowed domain (supabase.co or lovable.app)');
+  }
+
+  // Pre-generate a session ID so we can pass it to the script and return it immediately.
+  const sessionId = `pw-${randomUUID().replace(/-/g, '').slice(0, 8)}`;
+
+  // Base64-encode outline and regenerate args — they may contain backticks or other
+  // shell-special characters that would break the bash -c invocation.
+  const outlineB64 = Buffer.from(resourceOutline).toString('base64');
+  const regenB64 = Buffer.from(regenerateInput).toString('base64');
+
+  const sessionTasks = [
+    {
+      id: 'phantomwriter-generate',
+      type: 'bash',
+      label: `Generate PhantomWriter lead magnet post (${resourceType}) via ${mlxProfileName}`,
+      command:
+        `node /data/phantomwriter/run-phantomwriter.js ` +
+        `${JSON.stringify(mlxProfileName)} ` +
+        `${JSON.stringify(resourceType)} ` +
+        `${JSON.stringify(outlineB64)} ` +
+        `${JSON.stringify(regenB64)} ` +
+        `${JSON.stringify(callbackUrl)} ` +
+        `${JSON.stringify(executionId)} ` +
+        `${JSON.stringify(sessionId)}`,
+    },
+  ];
+
+  const plan = {
+    clientId: null,
+    clientName: 'PhantomWriter',
+    platform: null,
+    callbackUrl,
+    callbackMetadata,
+    tasks: sessionTasks,
+  };
+
+  try {
+    launchSession(plan);
+    return json(res, 202, {
+      session_id: sessionId,
+      execution_id: executionId,
+      status: 'starting',
+      message: `PhantomWriter post generation started (${resourceType}). Callback will fire when complete.`,
+    });
+  } catch (e) {
+    return err(res, 500, `Failed to launch PhantomWriter task: ${e.message}`);
+  }
+}
+
 async function handleMarinerGetSession(req, res, sessionId) {
   if (!sessionId) return err(res, 400, 'sessionId is required');
   const session = readSession(sessionId);
@@ -722,6 +805,10 @@ const server = createServer(async (req, res) => {
 
     if (req.method === 'POST' && path === '/api/v1/provision-profile') {
       return await handleProvisionProfile(req, res);
+    }
+
+    if (req.method === 'POST' && path === '/api/v1/generate-post') {
+      return await handleGeneratePost(req, res);
     }
 
     err(res, 404, `Route not found: ${req.method} ${path}`);

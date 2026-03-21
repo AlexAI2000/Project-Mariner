@@ -325,5 +325,22 @@
     "credentials": {},
     "briefing": null,
     "profileContent": null
+  },
+  "phantomwriter": {
+    "name": "PhantomWriter",
+    "phone": null,
+    "proxy": {
+      "type": "http",
+      "host": "gate.multilogin.com",
+      "port": 8080,
+      "login": "2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-zjuv1LYjG1AQrzP-ttl-24h-filter-medium",
+      "password": "d7604f82727b8972ce71ca4e8d96fd0d",
+      "connectionUrl": "gate.multilogin.com:8080:2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-zjuv1LYjG1AQrzP-ttl-24h-filter-medium:d7604f82727b8972ce71ca4e8d96fd0d"
+    },
+    "email": null,
+    "mlProfiles": {},
+    "credentials": {},
+    "briefing": null,
+    "profileContent": null
   }
 }
