@@ -721,6 +721,66 @@ async function handleMarinerGetSession(req, res, sessionId) {
   });
 }
 
+// ── Screenshot endpoint ───────────────────────────────────────────────────────
+
+// Relaxed callback URL validator for the screenshot endpoint.
+// Allows any http/https URL as long as it's not a private/loopback IP.
+function isAllowedScreenshotCallbackUrl(urlStr) {
+  let u;
+  try { u = new URL(urlStr); } catch { return false; }
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') return false;
+  if (PRIVATE_IP_RE.test(u.hostname)) return false;
+  return true;
+}
+
+// POST /api/v1/screenshot
+// Body: { url, callback_url, execution_id, auth_token? }
+// Responds immediately with 200, then spawns screenshot.js in the background.
+// screenshot.js navigates to url, dismisses all popups, takes a 1440×900 PNG,
+// and POSTs the result to callback_url with { execution_id, status, screenshot, url, timestamp }.
+async function handleScreenshot(req, res) {
+  let body;
+  try { body = await readBody(req); }
+  catch (e) { return err(res, 400, e.message); }
+
+  if (!checkMarinerAuth(req, body)) {
+    return err(res, 401, 'Unauthorized — provide Authorization: Bearer <token> or auth_token in body');
+  }
+
+  const { url: targetUrl, callback_url: callbackUrl, execution_id: executionId } = body;
+
+  if (!targetUrl) return err(res, 400, 'url is required');
+  if (!callbackUrl) return err(res, 400, 'callback_url is required');
+  if (!executionId) return err(res, 400, 'execution_id is required');
+
+  // Validate target URL
+  try { new URL(targetUrl); } catch { return err(res, 400, 'url must be a valid URL'); }
+
+  // Validate callback URL (relaxed — any non-private http/https URL)
+  if (!isAllowedScreenshotCallbackUrl(callbackUrl)) {
+    return err(res, 400, 'callback_url must be a valid http/https URL and cannot point to a private IP');
+  }
+
+  // Acknowledge immediately — screenshot runs in a detached background process
+  json(res, 200, {
+    status: 'received',
+    execution_id: executionId,
+    message: 'Screenshot job queued. Result will be POSTed to callback_url when complete.',
+  });
+
+  // Spawn screenshot.js detached so it survives independently of this request
+  spawn(process.execPath, [
+    '/data/executor/screenshot.js',
+    targetUrl,
+    callbackUrl,
+    String(executionId),
+  ], {
+    detached: true,
+    stdio: 'ignore',
+    env: process.env,
+  }).unref();
+}
+
 // ── Request router ────────────────────────────────────────────────────────────
 
 const server = createServer(async (req, res) => {
@@ -811,6 +871,10 @@ const server = createServer(async (req, res) => {
       return await handleGeneratePost(req, res);
     }
 
+    if (req.method === 'POST' && path === '/api/v1/screenshot') {
+      return await handleScreenshot(req, res);
+    }
+
     err(res, 404, `Route not found: ${req.method} ${path}`);
   } catch (e) {
     process.stderr.write(`[task-api] Unhandled error: ${e.message}\n`);
@@ -821,7 +885,7 @@ const server = createServer(async (req, res) => {
 server.listen(PORT, '0.0.0.0', () => {
   process.stderr.write(`[task-api] Listening on port ${PORT}\n`);
   process.stderr.write(`[task-api] Auth token: ${AUTH_TOKEN.slice(0, 8)}...\n`);
-  process.stderr.write(`[task-api] Endpoints: POST /api/session, GET /api/session/:id, POST /api/task, GET|POST /api/clients\n`);
+  process.stderr.write(`[task-api] Endpoints: POST /api/session, GET /api/session/:id, POST /api/task, GET|POST /api/clients, POST /api/v1/screenshot\n`);
 });
 
 server.on('error', e => {

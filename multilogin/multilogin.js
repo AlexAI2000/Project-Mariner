@@ -445,7 +445,7 @@ export async function createProfile(clientId, platform, clientName, proxy = null
         webrtc_masking: 'mask',
       },
       fingerprint: {
-        screen: { resolution: '1440_900' },
+        screen: { resolution: '1440_900', width: 1440, height: 900, pixel_ratio: 2 },
       },
       // Container-specific Chrome launch args to prevent SIGTRAP sandbox crashes
       launch_args: CONTAINER_CHROME_FLAGS,
