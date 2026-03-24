@@ -57,7 +57,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 
 import { createServer } from 'http';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'fs';
 import { join } from 'path';
 import { spawnSync, spawn } from 'child_process';
 import { randomUUID } from 'crypto';
@@ -781,6 +781,99 @@ async function handleScreenshot(req, res) {
   }).unref();
 }
 
+// ── Lemlist endpoints ─────────────────────────────────────────────────────────
+//
+// POST /api/v1/lemlist/filter-leads
+//   Body: { filters: [...], _original_campaign_id?, callback_url, callback_metadata: { execution_id }, auth_token? }
+//   Spawns lemlist-filter.js which opens the Lead_Collector MLX profile, navigates to
+//   app.lemlist.com/database/people and applies every filter. Fires callback_url when done.
+//
+// POST /api/v1/lemlist/collect-leads
+//   Body: { list_name, lead_count?, create_list_if_missing?, callback_url, callback_metadata: { execution_id }, auth_token? }
+//   Spawns lemlist-collect.js which selects all visible leads, pushes them to a contacts
+//   list, exports the list as CSV and fires callback_url with { csv_content (base64), csv_rows }.
+
+async function handleLemlistFilterLeads(req, res) {
+  let body;
+  try { body = await readBody(req); }
+  catch (e) { return err(res, 400, e.message); }
+
+  if (!checkMarinerAuth(req, body)) {
+    return err(res, 401, 'Unauthorized — provide Authorization: Bearer <token> or auth_token in body');
+  }
+
+  const { filters, callback_url: callbackUrl, callback_metadata } = body;
+  const executionId = callback_metadata?.execution_id;
+
+  if (!filters || !Array.isArray(filters)) return err(res, 400, 'filters (array) is required');
+  if (!callbackUrl) return err(res, 400, 'callback_url is required');
+  if (!executionId) return err(res, 400, 'callback_metadata.execution_id is required');
+  if (!isAllowedScreenshotCallbackUrl(callbackUrl)) {
+    return err(res, 400, 'callback_url must be a valid http/https URL and cannot point to a private IP');
+  }
+
+  const payloadPath = `/tmp/lemlist-filter-payload-${executionId}.json`;
+  writeFileSync(payloadPath, JSON.stringify(body));
+
+  json(res, 200, {
+    status: 'received',
+    execution_id: executionId,
+    message: `Lemlist filter job queued (${filters.length} filters). Result will be POSTed to callback_url when complete.`,
+  });
+
+  spawn(process.execPath, [
+    '/data/lemlist/lemlist-filter.js',
+    payloadPath,
+    callbackUrl,
+    String(executionId),
+  ], {
+    detached: true,
+    stdio: 'ignore',
+    env: process.env,
+  }).unref();
+}
+
+async function handleLemlistCollectLeads(req, res) {
+  let body;
+  try { body = await readBody(req); }
+  catch (e) { return err(res, 400, e.message); }
+
+  if (!checkMarinerAuth(req, body)) {
+    return err(res, 401, 'Unauthorized — provide Authorization: Bearer <token> or auth_token in body');
+  }
+
+  const { list_name, callback_url: callbackUrl, callback_metadata } = body;
+  const executionId = callback_metadata?.execution_id;
+
+  if (!list_name) return err(res, 400, 'list_name is required');
+  if (!callbackUrl) return err(res, 400, 'callback_url is required');
+  if (!executionId) return err(res, 400, 'callback_metadata.execution_id is required');
+  if (!isAllowedScreenshotCallbackUrl(callbackUrl)) {
+    return err(res, 400, 'callback_url must be a valid http/https URL and cannot point to a private IP');
+  }
+
+  const payloadPath = `/tmp/lemlist-collect-payload-${executionId}.json`;
+  writeFileSync(payloadPath, JSON.stringify(body));
+
+  json(res, 200, {
+    status: 'received',
+    execution_id: executionId,
+    list_name,
+    message: `Lemlist collect job queued for list "${list_name}". CSV will be POSTed to callback_url when complete.`,
+  });
+
+  spawn(process.execPath, [
+    '/data/lemlist/lemlist-collect.js',
+    payloadPath,
+    callbackUrl,
+    String(executionId),
+  ], {
+    detached: true,
+    stdio: 'ignore',
+    env: process.env,
+  }).unref();
+}
+
 // ── Request router ────────────────────────────────────────────────────────────
 
 const server = createServer(async (req, res) => {
@@ -873,6 +966,14 @@ const server = createServer(async (req, res) => {
 
     if (req.method === 'POST' && path === '/api/v1/screenshot') {
       return await handleScreenshot(req, res);
+    }
+
+    if (req.method === 'POST' && path === '/api/v1/lemlist/filter-leads') {
+      return await handleLemlistFilterLeads(req, res);
+    }
+
+    if (req.method === 'POST' && path === '/api/v1/lemlist/collect-leads') {
+      return await handleLemlistCollectLeads(req, res);
     }
 
     err(res, 404, `Route not found: ${req.method} ${path}`);
