@@ -3,7 +3,7 @@
 // Selects the appropriate Pilot agent (round-robin by platform), then delegates
 // full team spawning (Pilot + Humanizer + Assistant + 3 Watchdogs) to spawn-team.js.
 //
-// Usage: node trigger-working-session.js <accountId> <platform> <clientName> <tasksJson> <callbackUrl> <executionId>
+// Usage: node trigger-working-session.js <accountId> <clientName> <tasksJson> <callbackUrl> <executionId>
 // Output: JSON { success, pid, sessionId, worker, logFile } to stdout (returns immediately)
 // Exit 0: team triggered  Exit 1: error
 
@@ -11,10 +11,10 @@ import { spawn } from 'child_process';
 import { randomUUID } from 'crypto';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 
-const [, , accountId, platform, clientName, tasksRaw, callbackUrl, executionId] = process.argv;
+const [, , accountId, clientName, tasksRaw, callbackUrl, executionId] = process.argv;
 
-if (!accountId || !platform || !clientName || !tasksRaw || !callbackUrl || !executionId) {
-  console.error('Usage: node trigger-working-session.js <accountId> <platform> <clientName> <tasksJson> <callbackUrl> <executionId>');
+if (!accountId || !clientName || !tasksRaw || !callbackUrl || !executionId) {
+  console.error('Usage: node trigger-working-session.js <accountId> <clientName> <tasksJson> <callbackUrl> <executionId>');
   process.exit(1);
 }
 
@@ -27,7 +27,6 @@ try {
 }
 
 // ── Pilot selection (round-robin across all 10 Mariner Pilots) ───────────────
-// All platforms use the unified worker-1..10 pool (Mariner Apex Pilots).
 
 const PILOTS = [
   'worker-1', 'worker-2', 'worker-3', 'worker-4', 'worker-5',
@@ -36,7 +35,7 @@ const PILOTS = [
 
 const COUNTER_FILE = `/tmp/mariner-counter.json`;
 
-function pickPilot(_p) {
+function pickPilot() {
   const pool = PILOTS;
   let counter = 0;
   try {
@@ -47,7 +46,7 @@ function pickPilot(_p) {
   return pilot;
 }
 
-const pilotName = pickPilot(platform.toLowerCase());
+const pilotName = pickPilot();
 const sessionId = `ws-${accountId}-${randomUUID().slice(0, 8)}`;
 
 // ── Delegate to spawn-team.js ─────────────────────────────────────────────────
@@ -57,7 +56,6 @@ const spawnTeamArgs = [
   sessionId,
   pilotName,
   accountId,
-  platform,
   clientName,
   tasksRaw,
   callbackUrl,

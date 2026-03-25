@@ -395,7 +395,7 @@ export async function stopProfile(profileId) {
 
 // Create a new MultiLogin X browser profile.
 // Returns { profileId, folderId }.
-export async function createProfile(clientId, platform, clientName, proxy = null) {
+export async function createProfile(clientId, clientName, proxy = null) {
   const { token } = await getToken();
   const folder = ML_FOLDER_ID;
 
@@ -406,7 +406,7 @@ export async function createProfile(clientId, platform, clientName, proxy = null
     );
   }
 
-  const profileName = `${clientName} | ${platform} | ${clientId}`;
+  const profileName = `${clientName} | ${clientId}`;
 
   // Extra Chrome flags needed to prevent SIGTRAP/renderer crashes in containerized environments.
   // These are passed to Mimic (Chromium-based) via the profile's launch_args field.
@@ -493,17 +493,14 @@ const PROXY_TEMPLATES = {
 };
 const DEFAULT_PROXY_TEMPLATE = { sessionType: 'sticky', protocol: 'http', country: 'us', IPTTL: 86400 };
 
-// Create a proxy for a client using the platform's named template.
-// For LinkedIn: always uses "LinkedIn Profile Proxy Configuration" template settings.
+// Create a proxy for a client using the "LinkedIn Profile Proxy Configuration" template.
 // Returns { type, host, port, login, password, connectionUrl }.
-export async function createProxy(clientId, platform, clientName) {
+export async function createProxy(clientId, clientName) {
   const { token } = await getToken();
-  const template = PROXY_TEMPLATES[platform.toLowerCase()] || DEFAULT_PROXY_TEMPLATE;
-  const templateName = platform.toLowerCase() === 'linkedin'
-    ? 'LinkedIn Profile Proxy Configuration'
-    : `${platform} Profile Proxy Configuration`;
+  const template = DEFAULT_PROXY_TEMPLATE;
+  const templateName = 'LinkedIn Profile Proxy Configuration';
 
-  process.stderr.write(`[multilogin] Creating proxy for "${clientName}" (${platform}) using "${templateName}" template...\n`);
+  process.stderr.write(`[multilogin] Creating proxy for "${clientName}" using "${templateName}" template...\n`);
 
   const res = await fetch(`${ML_PROXY_API}/v1/proxy/connection_url`, {
     method: 'POST',

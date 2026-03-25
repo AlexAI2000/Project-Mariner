@@ -31,27 +31,19 @@
 //   Returns { ok: true, uptime }
 //
 // POST /api/v1/working-session   (Lovable/Mariner working session bridge)
-//   Body: { session_id?, client_name, account_id, platform, working_session: { tasks: [{task_type, details?}] },
+//   Body: { session_id?, client_name, account_id, working_session: { tasks: [{task_type, details?}] },
 //           timeout?, auth_token, callback_url, callback_metadata: { execution_id } }
-//   Dispatches all task types to the director agent. Fires callback_url on completion with execution_id.
+//   Looks up MLX profile by account_id, opens the browser, fires callback_url when browser is ready.
 //   Returns { session_id, account_id, execution_id, status, message }
 //
 // GET /api/v1/working-session/:id
 //   Returns session state in Lovable format.
 //
-// POST /api/v1/account-creation  (Lovable account creation bridge)
-//   Body: { client_name, account_id, platform, account_creation: { tasks: {...}, briefing: "..." },
-//           timeout?, auth_token, callback_url, callback_metadata: { execution_id } }
-//   Triggers full account creation via director agent. Fires callback_url on completion.
-//   Returns { session_id, account_id, execution_id, status, message }
-//
-// GET /api/v1/account-creation/:id
-//   Returns session state in Lovable format.
-//
 // POST /api/v1/provision-profile  (MLX profile-only provisioning, no agent)
-//   Body: { account_id, client_name?, platform?, auth_token, callback_url, callback_metadata: { execution_id } }
+//   Body: { account_id, client_name?, proxy?, auth_token, callback_url, callback_metadata: { execution_id } }
+//   proxy (optional): "host:port:username:password" — if omitted, a proxy is auto-generated via MLX proxy API.
 //   Creates proxy + MLX browser profile. Does NOT launch an AI agent or open a browser session.
-//   Fires callback_url with { execution_id, account_id, platform, status, mlProfileId, folderId, isNew }.
+//   Fires callback_url with { execution_id, account_id, status, mlProfileId, folderId, isNew }.
 //   Returns { session_id, account_id, execution_id, status, message }
 //
 // ──────────────────────────────────────────────────────────────────────────────
@@ -403,7 +395,6 @@ async function handleMarinerWorkingSession(req, res) {
 
   const accountId = body.account_id;
   const clientName = body.client_name || accountId;
-  const platform = body.platform || 'linkedin';
   const callbackUrl = body.callback_url || MARINER_WEBHOOK_URL;
   const callbackMetadata = body.callback_metadata || {};
   const executionId = callbackMetadata.execution_id || randomUUID();
@@ -433,10 +424,10 @@ async function handleMarinerWorkingSession(req, res) {
     {
       id: 'execute-working-session',
       type: 'bash',
-      label: `Execute ${platform} working session (${incomingTasks.length} task${incomingTasks.length !== 1 ? 's' : ''})`,
+      label: `Execute working session (${incomingTasks.length} task${incomingTasks.length !== 1 ? 's' : ''}) for ${clientName}`,
       command:
         `node /data/executor/trigger-working-session.js ` +
-        `'${safeAccountId}' '${platform}' '${safeClientName}' ` +
+        `'${safeAccountId}' '${safeClientName}' ` +
         `${JSON.stringify(tasksJson)} ` +
         `${JSON.stringify(callbackUrl)} ` +
         `${JSON.stringify(executionId)}`,
@@ -446,7 +437,6 @@ async function handleMarinerWorkingSession(req, res) {
   const plan = {
     clientId: accountId,
     clientName,
-    platform,
     callbackUrl,
     callbackMetadata,
     tasks: sessionTasks,
@@ -460,106 +450,16 @@ async function handleMarinerWorkingSession(req, res) {
       account_id: accountId,
       execution_id: executionId,
       status: 'starting',
-      message: `Working session started. Director will execute ${incomingTasks.length} ${platform} task(s) for ${clientName}.`,
+      message: `Working session started for ${clientName}. Browser will be opened and ready shortly.`,
     });
   } catch (e) {
     return err(res, 500, `Failed to launch working session: ${e.message}`);
   }
 }
 
-// POST /api/v1/account-creation
-// Accepts account creation payload from Lovable. Triggers full account setup via director agent.
-// Fires callback_url with execution_id on completion.
-async function handleAccountCreation(req, res) {
-  let body;
-  try { body = await readBody(req); }
-  catch (e) { return err(res, 400, e.message); }
-
-  if (!checkMarinerAuth(req, body)) {
-    return err(res, 401, 'Unauthorized — invalid auth_token');
-  }
-
-  const accountId = body.account_id;
-  const clientName = body.client_name || accountId;
-  const platform = body.platform || 'linkedin';
-  const callbackUrl = body.callback_url || MARINER_WEBHOOK_URL;
-  const callbackMetadata = body.callback_metadata || {};
-  const executionId = callbackMetadata.execution_id || randomUUID();
-  const accountCreation = body.account_creation || {};
-  const tasks = accountCreation.tasks || {};
-  const briefingText = accountCreation.briefing || '';
-
-  if (!accountId) return err(res, 400, 'account_id is required');
-
-  // SSRF protection: validate callback_url points to an allowed external HTTPS endpoint
-  if (body.callback_url && !isAllowedCallbackUrl(callbackUrl)) {
-    return err(res, 400, 'callback_url must be an HTTPS URL pointing to an allowed domain (supabase.co or lovable.app)');
-  }
-
-  const briefingObj = {
-    name: tasks.create_account_name || clientName,
-    platform,
-    oneLineSummary: briefingText || tasks.create_headline || '',
-    ...(tasks.create_headline && { headline: tasks.create_headline }),
-    ...(tasks.create_biography && { bio: tasks.create_biography }),
-    ...(tasks.create_working_history && { workHistory: tasks.create_working_history }),
-    ...(tasks.create_skills && { skills: tasks.create_skills }),
-  };
-  const briefingJson = JSON.stringify(briefingObj);
-
-  const safeAccountId = accountId.replace(/'/g, '');
-  const safeClientName = clientName.replace(/'/g, '').replace(/"/g, '');
-
-  const sessionTasks = [
-    {
-      id: 'init-client',
-      type: 'bash',
-      label: 'Create proxy + MLX profile & save briefing',
-      // 'resolve' creates client entry, proxy, and MLX profile in the correct order.
-      // It is idempotent — safe to retry if the session is restarted.
-      command:
-        `node /data/clients/client-manager.js resolve '${safeAccountId}' '${platform}' '${safeClientName}' && ` +
-        `node /data/content-generators/save-briefing.js '${safeAccountId}' ${JSON.stringify(briefingJson)}`,
-    },
-    {
-      id: 'trigger-account-creation',
-      type: 'bash',
-      label: `Trigger ${platform} account creation via director`,
-      command:
-        `node /data/executor/trigger-account-creation.js ` +
-        `'${safeAccountId}' '${platform}' '${safeClientName}' ` +
-        `${JSON.stringify(briefingJson)} ` +
-        `${JSON.stringify(callbackUrl)} ` +
-        `${JSON.stringify(executionId)}`,
-    },
-  ];
-
-  const plan = {
-    clientId: accountId,
-    clientName,
-    platform,
-    callbackUrl,
-    callbackMetadata,
-    tasks: sessionTasks,
-  };
-
-  try {
-    const launched = launchSession(plan);
-    return json(res, 202, {
-      session_id: launched.sessionId,
-      account_id: accountId,
-      execution_id: executionId,
-      status: 'starting',
-      message: `Account creation started for ${clientName} on ${platform}. Director agent will handle full setup.`,
-    });
-  } catch (e) {
-    return err(res, 500, `Failed to launch account creation: ${e.message}`);
-  }
-}
-
 // POST /api/v1/provision-profile
 // Creates proxy + MLX browser profile for an account. Does NOT launch an AI agent.
-// Fires callback_url with { execution_id, account_id, platform, status, mlProfileId, folderId, isNew }.
+// Fires callback_url with { execution_id, account_id, status, mlProfileId, folderId, isNew }.
 async function handleProvisionProfile(req, res) {
   let body;
   try { body = await readBody(req); }
@@ -571,10 +471,10 @@ async function handleProvisionProfile(req, res) {
 
   const accountId = body.account_id;
   const clientName = body.client_name || accountId;
-  const platform = body.platform || 'linkedin';
   const callbackUrl = body.callback_url || MARINER_WEBHOOK_URL;
   const callbackMetadata = body.callback_metadata || {};
   const executionId = callbackMetadata.execution_id || randomUUID();
+  const proxyString = body.proxy || '';  // optional "host:port:user:pass"
 
   if (!accountId) return err(res, 400, 'account_id is required');
 
@@ -588,16 +488,16 @@ async function handleProvisionProfile(req, res) {
   const plan = {
     clientId: accountId,
     clientName,
-    platform,
     tasks: [{
       id: 'provision-profile',
       type: 'bash',
-      label: `Create proxy + MLX profile for ${clientName} on ${platform}`,
+      label: `Create proxy + MLX profile for ${clientName}`,
       command:
         `node /data/executor/provision-profile.js ` +
-        `'${safeAccountId}' '${platform}' '${safeClientName}' ` +
+        `'${safeAccountId}' '${safeClientName}' ` +
         `${JSON.stringify(callbackUrl)} ` +
-        `${JSON.stringify(executionId)}`,
+        `${JSON.stringify(executionId)} ` +
+        `${JSON.stringify(proxyString)}`,
     }],
   };
 
@@ -608,7 +508,7 @@ async function handleProvisionProfile(req, res) {
       account_id: accountId,
       execution_id: executionId,
       status: 'starting',
-      message: `Profile provisioning started for ${clientName} on ${platform}.`,
+      message: `Profile provisioning started for ${clientName}.`,
     });
   } catch (e) {
     return err(res, 500, `Failed to launch provisioning: ${e.message}`);
@@ -944,15 +844,6 @@ const server = createServer(async (req, res) => {
 
     if (req.method === 'GET' && path.startsWith('/api/v1/working-session/')) {
       const sessionId = path.replace('/api/v1/working-session/', '').trim();
-      return await handleMarinerGetSession(req, res, sessionId);
-    }
-
-    if (req.method === 'POST' && path === '/api/v1/account-creation') {
-      return await handleAccountCreation(req, res);
-    }
-
-    if (req.method === 'GET' && path.startsWith('/api/v1/account-creation/')) {
-      const sessionId = path.replace('/api/v1/account-creation/', '').trim();
       return await handleMarinerGetSession(req, res, sessionId);
     }
 

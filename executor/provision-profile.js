@@ -4,26 +4,42 @@
 //
 // Does NOT launch a browser session or an AI agent — profile creation only.
 //
-// Usage: node provision-profile.js <accountId> <platform> <clientName> <callbackUrl> <executionId>
+// Usage: node provision-profile.js <accountId> <clientName> <callbackUrl> <executionId> [proxyString]
+// proxyString (optional): "host:port:username:password" — bypasses auto proxy generation.
 
 import { resolveClient } from '/data/clients/client-manager.js';
 
-const [,, accountId, platform, clientName, callbackUrl, executionId] = process.argv;
+const [,, accountId, clientName, callbackUrl, executionId, proxyString] = process.argv;
 
-if (!accountId || !platform || !callbackUrl) {
-  process.stderr.write('Usage: provision-profile.js <accountId> <platform> <clientName> <callbackUrl> <executionId>\n');
+if (!accountId || !callbackUrl) {
+  process.stderr.write('Usage: provision-profile.js <accountId> <clientName> <callbackUrl> <executionId> [proxyString]\n');
   process.exit(1);
+}
+
+// Parse "host:port:username:password" into a proxy config object.
+function parseProxyString(str) {
+  if (!str) return null;
+  const parts = str.split(':');
+  if (parts.length < 4) return null;
+  const [host, port, ...rest] = parts;
+  // username may contain colons — everything except the last part is username
+  const password = rest.pop();
+  const username = rest.join(':');
+  return { type: 'http', host, port: parseInt(port, 10), login: username, password };
 }
 
 async function run() {
   let payload;
   try {
+    const proxyOverride = parseProxyString(proxyString);
+    if (proxyOverride) {
+      process.stderr.write(`[provision-profile] Using supplied proxy: ${proxyOverride.host}:${proxyOverride.port}\n`);
+    }
     process.stderr.write(`[provision-profile] Resolving client ${accountId} / ${platform}...\n`);
-    const ctx = await resolveClient(accountId, platform, clientName || accountId);
+    const ctx = await resolveClient(accountId, clientName || accountId, proxyOverride);
     payload = {
       execution_id: executionId || null,
       account_id: accountId,
-      platform,
       status: 'provisioned',
       mlProfileId: ctx.mlProfileId,
       folderId: ctx.folderId,
@@ -34,7 +50,6 @@ async function run() {
     payload = {
       execution_id: executionId || null,
       account_id: accountId,
-      platform,
       status: 'error',
       error: e.message,
     };
