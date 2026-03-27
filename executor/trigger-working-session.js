@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // trigger-working-session.js — Launches a Mariner Apex team for a working session.
-// Selects the appropriate Pilot agent (round-robin by platform), then delegates
+// Selects the appropriate Pilot agent (round-robin), then delegates
 // full team spawning (Pilot + Humanizer + Assistant + 3 Watchdogs) to spawn-team.js.
 //
 // Usage: node trigger-working-session.js <accountId> <clientName> <tasksJson> <callbackUrl> <executionId>

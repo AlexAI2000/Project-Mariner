@@ -364,5 +364,82 @@
     "credentials": {},
     "briefing": null,
     "profileContent": null
+  },
+  "mdm-e7bfb725": {
+    "name": "Aydin",
+    "phone": null,
+    "proxy": null,
+    "email": null,
+    "mlProfiles": {},
+    "credentials": {},
+    "briefing": null,
+    "profileContent": null,
+    "mlProfile": {
+      "profileId": "63ebc846-fc8f-4ae6-8eb3-a2a52dcc79b5",
+      "folderId": "3d1d4dee-4839-49fc-a414-616b069c9fbf"
+    }
+  },
+  "mdm-5c061515": {
+    "name": "Aydin J.",
+    "phone": null,
+    "proxy": {
+      "type": "http",
+      "host": "gate.multilogin.com",
+      "port": 8080,
+      "login": "2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-GgLXy5CufSok-ttl-24h-filter-medium",
+      "password": "d7604f82727b8972ce71ca4e8d96fd0d",
+      "connectionUrl": "gate.multilogin.com:8080:2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-GgLXy5CufSok-ttl-24h-filter-medium:d7604f82727b8972ce71ca4e8d96fd0d"
+    },
+    "email": null,
+    "mlProfiles": {},
+    "credentials": {},
+    "briefing": null,
+    "profileContent": null,
+    "mlProfile": {
+      "profileId": "95585a71-f7c1-4ec9-a612-764241d6b5d2",
+      "folderId": "3d1d4dee-4839-49fc-a414-616b069c9fbf"
+    }
+  },
+  "mdm-0b291e8a": {
+    "name": "Aydin",
+    "phone": null,
+    "proxy": {
+      "type": "http",
+      "host": "gate.multilogin.com",
+      "port": 8080,
+      "login": "2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-rT7PCQZ8BFDAl-ttl-24h-filter-medium",
+      "password": "d7604f82727b8972ce71ca4e8d96fd0d",
+      "connectionUrl": "gate.multilogin.com:8080:2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-rT7PCQZ8BFDAl-ttl-24h-filter-medium:d7604f82727b8972ce71ca4e8d96fd0d"
+    },
+    "email": null,
+    "mlProfiles": {},
+    "credentials": {},
+    "briefing": null,
+    "profileContent": null,
+    "mlProfile": {
+      "profileId": "c564bebc-d32a-4e15-9bdf-a4af4620999f",
+      "folderId": "3d1d4dee-4839-49fc-a414-616b069c9fbf"
+    }
+  },
+  "mdm-d69ae263": {
+    "name": "Elvin",
+    "phone": null,
+    "proxy": {
+      "type": "http",
+      "host": "gate.multilogin.com",
+      "port": 8080,
+      "login": "2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-hc7s7KzK21-ttl-24h-filter-medium",
+      "password": "d7604f82727b8972ce71ca4e8d96fd0d",
+      "connectionUrl": "gate.multilogin.com:8080:2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-hc7s7KzK21-ttl-24h-filter-medium:d7604f82727b8972ce71ca4e8d96fd0d"
+    },
+    "email": null,
+    "mlProfiles": {},
+    "credentials": {},
+    "briefing": null,
+    "profileContent": null,
+    "mlProfile": {
+      "profileId": "312fc83e-e082-4d2f-9f02-f86bb8d51923",
+      "folderId": "3d1d4dee-4839-49fc-a414-616b069c9fbf"
+    }
   }
 }

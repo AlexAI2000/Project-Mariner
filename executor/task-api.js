@@ -8,7 +8,7 @@
 // ── Endpoints ──
 //
 // POST /api/session
-//   Body: { clientId, platform, clientName?, tasks: [{id, label, steps},...] }
+//   Body: { clientId, clientName?, tasks: [{id, label, steps},...] }
 //   Creates a background session. Returns { sessionId, status, isNew }
 //   isNew=true means MultiLogin X profile was auto-created for this client.
 //
@@ -16,12 +16,12 @@
 //   Returns full session state: { sessionId, status, tasks, result, clientContext }
 //
 // POST /api/task
-//   Body: { clientId, platform, steps: [...] }
+//   Body: { clientId, steps: [...] }
 //   Synchronous single-task dispatch. Waits up to 5 min for result.
 //   Returns { success, results, error }
 //
 // GET /api/clients
-//   Returns list of all registered clients with their platforms.
+//   Returns list of all registered clients.
 //
 // POST /api/clients
 //   Body: { clientId, name, proxy?, phone? }
@@ -255,7 +255,6 @@ async function handleCreateSession(req, res) {
 
   const plan = {
     clientId: body.clientId || null,
-    platform: body.platform || null,
     clientName: body.clientName || null,
     tasks: body.tasks,
   };
@@ -288,7 +287,6 @@ async function handleGetSession(req, res, sessionId) {
     createdAt: session.createdAt,
     completedAt: session.completedAt || null,
     clientId: session.clientId || null,
-    platform: session.platform || null,
     clientContext: session.clientContext || null,
     tasks: session.tasks.map(t => ({
       id: t.id,
@@ -317,7 +315,6 @@ async function handleDispatchTask(req, res) {
   const taskBody = {
     steps: body.steps,
     clientId: body.clientId || null,
-    platform: body.platform || null,
     mlProfileId: body.mlProfileId || null,
   };
   // Remove nulls
@@ -474,7 +471,19 @@ async function handleProvisionProfile(req, res) {
   const callbackUrl = body.callback_url || MARINER_WEBHOOK_URL;
   const callbackMetadata = body.callback_metadata || {};
   const executionId = callbackMetadata.execution_id || randomUUID();
-  const proxyString = body.proxy || '';  // optional "host:port:user:pass"
+
+  // Proxy: accept object { host, port, username, password } or string "host:port:user:pass"
+  let proxyString = '';
+  if (body.proxy) {
+    if (typeof body.proxy === 'object') {
+      const p = body.proxy;
+      if (p.host && p.port && p.username && p.password) {
+        proxyString = `${p.host}:${p.port}:${p.username}:${p.password}`;
+      }
+    } else if (typeof body.proxy === 'string') {
+      proxyString = body.proxy;
+    }
+  }
 
   if (!accountId) return err(res, 400, 'account_id is required');
 
@@ -488,6 +497,8 @@ async function handleProvisionProfile(req, res) {
   const plan = {
     clientId: accountId,
     clientName,
+    callbackUrl,
+    callbackMetadata,
     tasks: [{
       id: 'provision-profile',
       type: 'bash',
@@ -579,7 +590,6 @@ async function handleGeneratePost(req, res) {
   const plan = {
     clientId: null,
     clientName: 'PhantomWriter',
-    platform: null,
     callbackUrl,
     callbackMetadata,
     tasks: sessionTasks,
@@ -606,7 +616,6 @@ async function handleMarinerGetSession(req, res, sessionId) {
   json(res, 200, {
     session_id: session.id,
     account_id: session.clientId,
-    platform: session.platform,
     status: session.status,
     createdAt: session.createdAt,
     completedAt: session.completedAt || null,

@@ -382,7 +382,7 @@ export async function stopProfile(profileId) {
   try {
     const { token } = await getToken();
     await launcherGet(
-      `/api/v1/profile/stop?profile_id=${profileId}`,
+      `/api/v1/profile/stop/p/${profileId}`,
       token,
       30000
     );

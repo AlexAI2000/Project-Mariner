@@ -290,20 +290,17 @@ const server = http.createServer(async (req, res) => {
     let body;
     try { body = await parseBody(req); } catch (e) { return send(res, 400, { success: false, error: e.message }); }
 
-    const {
-      accountId,
-      platform,
-      clientName,
-      sessionId    = `ms-${crypto.randomUUID().slice(0, 8)}`,
-      callbackUrl,
-      executionId  = crypto.randomUUID(),
-    } = body;
+    const accountId  = body.accountId || body.account_id;
+    const clientName = body.clientName || body.client_name;
+    const callbackUrl = body.callbackUrl || body.callback_url;
+    const executionId = body.executionId || body.callback_metadata?.execution_id || crypto.randomUUID();
+    const sessionId   = body.sessionId || `ms-${crypto.randomUUID().slice(0, 8)}`;
 
-    if (!accountId || !platform) {
-      return send(res, 400, { success: false, error: 'accountId and platform are required' });
+    if (!accountId) {
+      return send(res, 400, { success: false, error: 'accountId (or account_id) is required' });
     }
 
-    log('info', 'session start requested', { executionId, sessionId, accountId, platform });
+    log('info', 'session start requested', { executionId, sessionId, accountId });
 
     // Respond immediately — browser startup takes 10–60s
     send(res, 202, {
@@ -311,12 +308,11 @@ const server = http.createServer(async (req, res) => {
       sessionId,
       executionId,
       accountId,
-      platform,
       message:     'Browser session starting. Callback will fire when ready.',
     });
 
     // Start the browser in background
-    const args = ['--session', sessionId, '--account', accountId, '--platform', platform];
+    const args = ['--session', sessionId, '--account', accountId];
     if (clientName) args.push('--clientName', clientName);
 
     const t0 = Date.now();
@@ -331,7 +327,6 @@ const server = http.createServer(async (req, res) => {
           executionId,
           sessionId,
           accountId,
-          platform,
           daemonPid:   parsed.daemonPid   || null,
           cdpUrl:      parsed.cdpUrl       || null,
           mlProfileId: parsed.mlProfileId  || null,
@@ -406,16 +401,13 @@ const server = http.createServer(async (req, res) => {
     let body;
     try { body = await parseBody(req); } catch (e) { return send(res, 400, { success: false, error: e.message }); }
 
-    const {
-      sessionId,
-      accountId,
-      platform,
-      raw_command,
-      callbackUrl,
-      executionId      = crypto.randomUUID(),
-      expectScreenshot = false,
-      timeoutMs        = CMD_TIMEOUT,
-    } = body;
+    const sessionId      = body.sessionId;
+    const accountId      = body.accountId || body.account_id;
+    const raw_command    = body.raw_command;
+    const callbackUrl    = body.callbackUrl || body.callback_url;
+    const executionId    = body.executionId || body.callback_metadata?.execution_id || crypto.randomUUID();
+    const expectScreenshot = body.expectScreenshot || false;
+    const timeoutMs      = body.timeoutMs || CMD_TIMEOUT;
 
     if (!raw_command) return send(res, 400, { success: false, error: 'raw_command is required' });
 
@@ -462,7 +454,6 @@ const server = http.createServer(async (req, res) => {
       executionId,
       sessionId:       sessionId   || null,
       accountId:       accountId   || null,
-      platform:        platform    || null,
       stdout:          result.stdout,
       stderr:          result.stderr,
       screenshotBase64,

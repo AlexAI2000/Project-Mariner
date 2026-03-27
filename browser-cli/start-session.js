@@ -3,7 +3,7 @@
 // Resolves the MLX profile, starts the CDP connection, spawns the daemon.
 // Called once at the start of each worker mission.
 //
-// Usage: node /data/browser-cli/start-session.js --session <id> --account <accountId> --platform <platform> [--tasks "t1,t2,..."]
+// Usage: node /data/browser-cli/start-session.js --session <id> --account <accountId> [--clientName <name>] [--tasks "t1,t2,..."]
 // Output: JSON { ok, sessionId, daemonPid, cdpUrl, logFile, socketPath }
 
 import { spawnSync, spawn } from 'child_process';
@@ -24,11 +24,11 @@ function parseArgs(argv) {
 const opts = parseArgs(process.argv.slice(2));
 const sessionId = opts.session || `ws-${randomUUID().slice(0, 8)}`;
 const accountId = opts.account;
-const platform = opts.platform;
+const clientName = opts.clientName || null;
 const tasks = opts.tasks || '';
 
-if (!accountId || !platform) {
-  console.error('Usage: node start-session.js --session <id> --account <accountId> --platform <platform>');
+if (!accountId) {
+  console.error('Usage: node start-session.js --session <id> --account <accountId> [--clientName <name>]');
   process.exit(1);
 }
 
@@ -57,17 +57,19 @@ if (existsSync(SOCKET_PATH) && existsSync(PID_PATH)) {
 // ── Step 2: Resolve MLX profile ─────────────────────────────────────────────
 
 function resolveProfile() {
-  const result = spawnSync(process.execPath, ['/data/executor/pa-lookup.js', accountId, platform], {
+  const args = ['/data/clients/client-manager.js', 'resolve', accountId];
+  if (clientName) args.push(clientName);
+  const result = spawnSync(process.execPath, args, {
     encoding: 'utf8',
     timeout: 60000,
   });
   if (result.status !== 0) {
-    throw new Error(`pa-lookup failed: ${result.stderr?.trim() || `exit ${result.status}`}`);
+    throw new Error(`client-manager resolve failed: ${result.stderr?.trim() || `exit ${result.status}`}`);
   }
   try {
     return JSON.parse(result.stdout.trim());
   } catch {
-    throw new Error(`pa-lookup bad JSON: ${result.stdout.slice(0, 200)}`);
+    throw new Error(`client-manager bad JSON: ${result.stdout.slice(0, 200)}`);
   }
 }
 
@@ -99,7 +101,6 @@ function spawnDaemon(cdpUrl) {
       sessionId,
       cdpUrl,
       '--account', accountId,
-      '--platform', platform,
     ];
     if (tasks) daemonArgs.push('--tasks', tasks);
 
@@ -133,7 +134,7 @@ async function main() {
   let clientProfile, cdpUrl, daemonPid;
 
   try {
-    process.stderr.write(`[start-session] Resolving profile for ${accountId}/${platform}...\n`);
+    process.stderr.write(`[start-session] Resolving profile for ${accountId}...\n`);
     clientProfile = resolveProfile();
     process.stderr.write(`[start-session] Profile: ${clientProfile.mlProfileId}\n`);
   } catch (e) {

@@ -7,7 +7,7 @@
 // Lock file prevents double-execution. Heartbeat updated every ~60s during dispatch.
 //
 // Session-level client context:
-//   If plan.clientId + plan.platform are set, resolves MultiLogin X profile ONCE at session start
+//   If plan.clientId is set, resolves MultiLogin X profile ONCE at session start
 //   and automatically injects mlProfileId + folderId + clientId into every browser task.
 //   A finalClose step is appended to the last browser task to humanize-close the browser.
 
@@ -62,14 +62,14 @@ function heartbeat(session) {
 
 // ── Client context resolution ─────────────────────────────────────────────────
 
-// Resolve MultiLogin X profile for the session's clientId + platform.
+// Resolve MultiLogin X profile for the session's clientId.
 // Calls client-manager.js as a subprocess so it can do async MultiLogin API calls.
 // Returns clientContext object or null if no clientId is set.
-async function resolveClientContext(clientId, platform, clientName = null) {
-  if (!clientId || !platform) return null;
+async function resolveClientContext(clientId, clientName = null) {
+  if (!clientId) return null;
 
   return new Promise((resolve, reject) => {
-    const cliArgs = [CLIENT_MANAGER, 'resolve', clientId, platform];
+    const cliArgs = [CLIENT_MANAGER, 'resolve', clientId];
     if (clientName) cliArgs.push(clientName);
 
     const proc = spawn(process.execPath, cliArgs, { stdio: ['ignore', 'pipe', 'pipe'] });
@@ -81,7 +81,7 @@ async function resolveClientContext(clientId, platform, clientName = null) {
 
     const timer = setTimeout(() => {
       proc.kill('SIGTERM');
-      reject(new Error(`resolveClientContext timed out (60s) for ${clientId}/${platform}`));
+      reject(new Error(`resolveClientContext timed out (60s) for ${clientId}`));
     }, 60000);
 
     proc.on('close', code => {
@@ -244,7 +244,6 @@ async function callLovableCallback(session) {
     session_id: session.id,
     account_id: session.clientId || null,
     client_name: session.clientName || null,
-    platform: session.platform || null,
     status: allOk ? 'completed' : 'failed',
     tasks_completed: session.tasks.filter(t => t.status === 'done').length,
     tasks_total: session.tasks.length,
@@ -305,10 +304,10 @@ async function runSession() {
   // ── Resolve client context once for the entire session ────────────────────
   let clientContext = session.clientContext || null;
 
-  if (!clientContext && session.clientId && session.platform) {
-    process.stderr.write(`[executor] Resolving client context for ${session.clientId}/${session.platform}...\n`);
+  if (!clientContext && session.clientId) {
+    process.stderr.write(`[executor] Resolving client context for ${session.clientId}...\n`);
     try {
-      clientContext = await resolveClientContext(session.clientId, session.platform, session.clientName || null);
+      clientContext = await resolveClientContext(session.clientId, session.clientName || null);
       session.clientContext = clientContext;
       if (clientContext.isNew) {
         session.clientContextNote = `MultiLogin X profile auto-created: ${clientContext.mlProfileId}`;
@@ -340,7 +339,6 @@ async function runSession() {
         clientId: clientContext.clientId,
         mlProfileId: clientContext.mlProfileId,
         folderId: clientContext.folderId,
-        platform: clientContext.platform,
       };
       lastBrowserTaskIdx = i;
     }

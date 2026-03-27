@@ -6,7 +6,7 @@
 // Plan JSON format:
 // {
 //   "clientId":  "john-doe",          // optional — enables auto-MultiLogin X + browser lifecycle
-//   "platform":  "linkedin",          // required when clientId is set
+//   (platform removed — sessions are platform-agnostic)
 //   "clientName": "John Doe",         // optional — used when creating a new client entry
 //   "tasks": [
 //     { "id": "task-1", "label": "Do X", "steps": [{action,...}, ...] },
@@ -15,7 +15,7 @@
 //   ]
 // }
 //
-// When clientId + platform are set:
+// When clientId is set:
 //   - executor resolves the MultiLogin X profile automatically (creates it via API if first time)
 //   - mlProfileId + folderId are injected into all browser tasks (no need to set them manually)
 //   - A humanized finalClose step is appended to the last browser task
@@ -76,7 +76,6 @@ const tasks = plan.tasks.map((t, i) => ({
   ...(t.clientId ? { clientId: t.clientId } : {}),
   ...(t.mlProfileId ? { mlProfileId: t.mlProfileId } : {}),
   ...(t.folderId ? { folderId: t.folderId } : {}),
-  ...(t.platform ? { platform: t.platform } : {}),
   status: 'pending',
   result: null,
 }));
@@ -88,7 +87,6 @@ const session = {
 
   // Session-level client context — executor resolves this before running tasks
   clientId: plan.clientId || null,
-  platform: plan.platform || null,
   clientName: plan.clientName || null,
   webhookUrl: plan.webhookUrl || null,
   clientContext: null, // filled by executor after resolveClient()

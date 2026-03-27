@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // provision-profile.js — Resolves (creates if needed) the MLX proxy + browser profile
-// for a given account_id + platform, then fires a callback URL with the result.
+// for a given account_id, then fires a callback URL with the result.
 //
 // Does NOT launch a browser session or an AI agent — profile creation only.
 //
@@ -35,7 +35,7 @@ async function run() {
     if (proxyOverride) {
       process.stderr.write(`[provision-profile] Using supplied proxy: ${proxyOverride.host}:${proxyOverride.port}\n`);
     }
-    process.stderr.write(`[provision-profile] Resolving client ${accountId} / ${platform}...\n`);
+    process.stderr.write(`[provision-profile] Resolving client ${accountId}...\n`);
     const ctx = await resolveClient(accountId, clientName || accountId, proxyOverride);
     payload = {
       execution_id: executionId || null,

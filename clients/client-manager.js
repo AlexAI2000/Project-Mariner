@@ -9,7 +9,7 @@
 //   import { resolveClient, ensureClient, readClients } from '/data/clients/client-manager.js';
 //
 // Usage as a CLI (called by pa-lookup.js and executor.js):
-//   node /data/clients/client-manager.js resolve <clientId> <platform> [clientName]
+//   node /data/clients/client-manager.js resolve <clientId> [clientName] [proxyString]
 //   node /data/clients/client-manager.js ensure <clientId> [clientName]
 //   node /data/clients/client-manager.js list
 
@@ -149,7 +149,7 @@ export async function resolveClient(clientId, name = null, proxyOverride = null)
   // Ensure client exists (creates blank entry only if truly not found)
   const client = ensureClient(effectiveClientId, name);
 
-  // Support migration from old mlProfiles[platform] structure → new mlProfile flat structure
+  // Support migration from old mlProfiles structure → new mlProfile flat structure
   const existingProfile = client.mlProfile ||
     client.mlProfiles?.linkedin ||
     Object.values(client.mlProfiles || {})[0] ||

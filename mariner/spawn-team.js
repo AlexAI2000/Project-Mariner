@@ -12,7 +12,7 @@
 //   6. Watchdog: Assistant  (bash infinite loop)
 //
 // Usage (called by trigger-working-session.js):
-//   node spawn-team.js <sessionId> <pilotAgentName> <accountId> <platform>
+//   node spawn-team.js <sessionId> <pilotAgentName> <accountId>
 //                      <clientName> <tasksJson> <callbackUrl> <executionId>
 //
 // Returns JSON to stdout: { success, sessionId, pids: { pilot, humanizer, assistant,
@@ -25,7 +25,7 @@ import { join } from 'path';
 
 const SESSIONS_DIR = '/data/sessions';
 
-const [, , sessionId, pilotAgentName, accountId, platform, clientName, tasksRaw, callbackUrl, executionId] = process.argv;
+const [, , sessionId, pilotAgentName, accountId, clientName, tasksRaw, callbackUrl, executionId] = process.argv;
 
 if (!sessionId || !pilotAgentName || !accountId || !tasksRaw) {
   console.error('Missing required args');
@@ -53,7 +53,6 @@ if (!existsSync(sessionFile)) {
     type: 'session_start',
     sessionId,
     accountId,
-    platform,
     clientName,
     executionId,
     tasks: tasks.map((t, i) => ({
@@ -83,7 +82,7 @@ const successPayload = JSON.stringify({
   session_id: sessionId,
   account_id: accountId,
   client_name: clientName,
-  platform,
+
   status: 'completed',
   tasks_completed: tasks.length,
   tasks_total: tasks.length,
@@ -95,7 +94,7 @@ const failurePayload = JSON.stringify({
   session_id: sessionId,
   account_id: accountId,
   client_name: clientName,
-  platform,
+
   status: 'failed',
   tasks_completed: 0,
   tasks_total: tasks.length,
@@ -104,12 +103,11 @@ const failurePayload = JSON.stringify({
 });
 
 const pilotMessage = [
-  `MARINER_APEX_TASK [${accountId}/${platform}/working_session]: Execute ${platform} working session for ${clientName}.`,
+  `MARINER_APEX_TASK [${accountId}/working_session]: Execute working session for ${clientName}.`,
   ``,
   `SESSION_ID: ${sessionId}`,
   `ACCOUNT_ID: ${accountId}`,
   `CLIENT_NAME: ${clientName}`,
-  `PLATFORM: ${platform}`,
   `EXECUTION_ID: ${executionId}`,
   `JSONL_SESSION_FILE: ${sessionFile}`,
   ``,
@@ -235,5 +233,5 @@ console.log(JSON.stringify({
     assistant: assistantLog,
   },
   sessionFile,
-  message: `Mariner Apex team launched for ${accountId} on ${platform}. Pilot: ${pilotAgentName} (PID ${pilotPid}).`,
+  message: `Mariner Apex team launched for ${accountId}. Pilot: ${pilotAgentName} (PID ${pilotPid}).`,
 }));
