@@ -131,37 +131,61 @@ async function getA11yTreeViaJSFallback(page) {
 }
 
 async function getA11yTree(page) {
-  // Wait for DOM to be ready (max 3s)
-  await page.waitForLoadState('domcontentloaded', { timeout: 3000 }).catch(() => {});
+  // Wait for DOM to be ready
+  await page.waitForLoadState('domcontentloaded', { timeout: 3600000 }).catch(() => {});
   // Wait for full load — catches SPA pages that need JS hydration before a11y tree populates
-  await page.waitForLoadState('load', { timeout: 8000 }).catch(() => {});
+  await page.waitForLoadState('load', { timeout: 3600000 }).catch(() => {});
+  // Fixed settle time for SPA frameworks (React/LinkedIn) to hydrate — random 11-15s
+  await new Promise(r => setTimeout(r, 11000 + Math.random() * 4000));
 
-  // CDP accessibility snapshot — 20s ceiling, typically 200-800ms
+  // Stability check: take snapshot, wait, take again — if element count is stable, page is done
+  // Safety cap: max 60 seconds of stability checking (on top of the 11-15s settle above)
+  const MAX_STABILITY_MS = 60000;
+  const started = Date.now();
+  let prevCount = 0;
+
+  for (let round = 1; (Date.now() - started) < MAX_STABILITY_MS; round++) {
+    try {
+      const tree = await Promise.race([
+        page.accessibility.snapshot({ interestingOnly: true }),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('CDP a11y timeout')), 30000)),
+      ]);
+
+      if (tree) {
+        const results = [], seen = new Set();
+        walkA11yTree(tree, results, seen);
+        const count = results.length;
+
+        // Page is stable: element count matches previous check and we have a rich tree
+        if (count >= 10 && count === prevCount) {
+          return results; // stable and rich — done
+        }
+
+        // Page is stable but sparse (e.g. simple page with few elements)
+        if (count >= 3 && count === prevCount && round >= 3) {
+          return results; // accept after 3 stability rounds even if sparse
+        }
+
+        prevCount = count;
+      }
+    } catch (_) {
+      // CDP a11y timeout — will retry
+    }
+
+    // Wait before next stability check: 2s first, then 5s for subsequent rounds
+    const waitMs = round === 1 ? 2000 : 5000;
+    await new Promise(r => setTimeout(r, waitMs));
+  }
+
+  // Safety fallback: if stability check exhausted, take one final snapshot and return whatever we get
   try {
-    const tree = await Promise.race([
-      page.accessibility.snapshot({ interestingOnly: true }),
-      new Promise((_, rej) => setTimeout(() => rej(new Error('CDP a11y timeout 20s')), 20000)),
-    ]);
-
+    const tree = await page.accessibility.snapshot({ interestingOnly: true });
     if (tree) {
       const results = [], seen = new Set();
       walkA11yTree(tree, results, seen);
-      if (results.length >= 3) return results; // success
+      if (results.length > 0) return results;
     }
-    // CDP returned null/empty — wait 2s for SPA to settle and retry once
-    await new Promise(r => setTimeout(r, 2000));
-    const tree2 = await Promise.race([
-      page.accessibility.snapshot({ interestingOnly: true }),
-      new Promise((_, rej) => setTimeout(() => rej(new Error('CDP a11y retry timeout')), 10000)),
-    ]);
-    if (tree2) {
-      const results = [], seen = new Set();
-      walkA11yTree(tree2, results, seen);
-      if (results.length >= 3) return results;
-    }
-  } catch (_) {
-    // CDP a11y API unavailable or timed out — fall through to JS fallback
-  }
+  } catch (_) {}
 
   return getA11yTreeViaJSFallback(page);
 }
@@ -329,19 +353,19 @@ export async function humanClick(page, locator, mouseState) {
 
   // Stage 1: standard visibility check
   try {
-    await locator.waitFor({ state: 'visible', timeout: 8000 });
+    await locator.waitFor({ state: 'visible', timeout: 3600000 });
     box = await locator.boundingBox();
   } catch (_e1) {
     // Stage 2: scroll the element into view, then retry visibility
     try {
-      await locator.scrollIntoViewIfNeeded({ timeout: 5000 });
-      await locator.waitFor({ state: 'visible', timeout: 5000 });
+      await locator.scrollIntoViewIfNeeded({ timeout: 3600000 });
+      await locator.waitFor({ state: 'visible', timeout: 3600000 });
       box = await locator.boundingBox();
     } catch (_e2) {
       // Stage 3: element is in DOM (attached) but not strictly "visible" by Playwright rules
       // (e.g. covered by overlay, zero-opacity, in shadow DOM). Get bbox directly via JS.
       try {
-        await locator.waitFor({ state: 'attached', timeout: 5000 });
+        await locator.waitFor({ state: 'attached', timeout: 3600000 });
         box = await locator.evaluate(el => {
           el.scrollIntoView({ block: 'center', inline: 'nearest' });
           const r = el.getBoundingClientRect();
@@ -499,9 +523,9 @@ export async function humanNavigate(page, url) {
       }
     } catch { /* ignore */ }
   }
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 600000 });
   // Wait for full load so React/SPA initial render completes before returning
-  await page.waitForLoadState('load', { timeout: 10000 }).catch(() => {});
+  await page.waitForLoadState('load', { timeout: 120000 }).catch(() => {});
   await sleep(1500 + Math.random() * 1500);   // slightly longer settle time
 }
 

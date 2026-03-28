@@ -159,15 +159,23 @@ async function connect() {
   browser = await chromium.connectOverCDP(wsUrl);
   const contexts = browser.contexts();
   context = contexts[0] || await browser.newContext();
+  context.setDefaultTimeout(600000);       // 10 min default for all Playwright actions
+  context.setDefaultNavigationTimeout(600000); // 10 min for navigations
 
-  // Register existing pages
+  // Clean start: close all existing pages except one, then register it as tab-0
   const pages = context.pages();
-  if (pages.length > 0) {
-    for (const p of pages) {
-      const tid = `tab-${tabCounter++}`;
-      tabs.set(tid, { page: p, url: p.url(), openedAt: Date.now() });
-      attachPageListeners(tid, p);
+  if (pages.length > 1) {
+    log(`Closing ${pages.length - 1} stale tabs for clean start`);
+    // Keep the first page, close the rest
+    for (let i = 1; i < pages.length; i++) {
+      try { await pages[i].close(); } catch {}
     }
+  }
+
+  if (pages.length > 0 && !pages[0].isClosed()) {
+    tabs.set('tab-0', { page: pages[0], url: pages[0].url(), openedAt: Date.now() });
+    attachPageListeners('tab-0', pages[0]);
+    tabCounter = 1;
     currentTabId = 'tab-0';
   } else {
     // Open initial blank page
@@ -175,16 +183,20 @@ async function connect() {
     tabs.set('tab-0', { page: p, url: 'about:blank', openedAt: Date.now() });
     attachPageListeners('tab-0', p);
     tabCounter = 1;
+    currentTabId = 'tab-0';
   }
 
   // Auto-register any new page the browser opens (link clicks that open new tabs,
-  // NTP shortcut navigations, etc.) — and follow them as the new current tab
+  // NTP shortcut navigations, etc.) — but do NOT auto-follow.
+  // The agent must explicitly switch tabs via switch-tab command.
   context.on('page', (newPage) => {
     const tid = `tab-${tabCounter++}`;
     tabs.set(tid, { page: newPage, url: 'about:blank', openedAt: Date.now() });
     attachPageListeners(tid, newPage);
-    currentTabId = tid;
-    log(`New tab auto-registered: ${tid} (following)`);
+    // Do NOT change currentTabId — agent stays on the tab it was working on.
+    // This prevents the silent tab mismatch where snapshot shows tab-0 but
+    // commands execute on a newly-opened tab.
+    log(`New tab auto-registered: ${tid} (NOT following — agent stays on ${currentTabId})`);
   });
 
   log(`Connected. ${tabs.size} tab(s) active.`);
@@ -324,7 +336,7 @@ async function cmd_snapshot({ tabId } = {}) {
   };
 }
 
-async function cmd_act({ ref, kind, text, tabId } = {}) {
+async function cmd_act({ ref, kind, text, key, tabId } = {}) {
   const tid = tabId || currentTabId;
   const page = getPage(tid);
   const cache = snapshotCache.get(tid);
@@ -346,20 +358,27 @@ async function cmd_act({ ref, kind, text, tabId } = {}) {
     logAction(sessionId, { action: 'act', ref, kind: 'click', tabId: tid, label: refObj.name, ...coords, result: 'ok' });
   } else if (kind === 'fill') {
     if (text === undefined) throw new Error('text is required for fill');
-    await humanFill(page, locator, text, ms);
-    logAction(sessionId, { action: 'act', ref, kind: 'fill', tabId: tid, label: refObj.name, text: text.slice(0, 80), result: 'ok' });
+    await humanFill(page, locator, String(text), ms);
+    logAction(sessionId, { action: 'act', ref, kind: 'fill', tabId: tid, label: refObj.name, text: String(text || '').slice(0, 80), result: 'ok' });
   } else if (kind === 'type') {
     if (text === undefined) throw new Error('text is required for type');
+    // Click the element to focus it first, then type keystroke-by-keystroke
+    coords = await humanClick(page, locator, ms);
+    // Human-like thinking pause: 5–11 seconds (lets UI settle + looks natural)
+    await new Promise(r => setTimeout(r, 5000 + Math.random() * 6000));
     await humanType(page, text);
-    logAction(sessionId, { action: 'act', ref, kind: 'type', tabId: tid, text: text.slice(0, 80), result: 'ok' });
+    logAction(sessionId, { action: 'act', ref, kind: 'type', tabId: tid, text: String(text || '').slice(0, 80), result: 'ok' });
   } else if (kind === 'check') {
     const box = await locator.boundingBox();
     if (box) coords = await humanClick(page, locator, ms);
     logAction(sessionId, { action: 'act', ref, kind: 'check', tabId: tid, label: refObj.name, result: 'ok' });
   } else if (kind === 'press') {
-    if (!text) throw new Error('text (key name) is required for press');
-    await page.keyboard.press(text);
-    logAction(sessionId, { action: 'act', ref, kind: 'press', tabId: tid, text, result: 'ok' });
+    const keyName = text || key;
+    if (!keyName) throw new Error('text or key is required for press (e.g. --text "Enter")');
+    // Brief human pause before pressing a key (1–3 seconds)
+    await new Promise(r => setTimeout(r, 1000 + Math.random() * 2000));
+    await page.keyboard.press(String(keyName));
+    logAction(sessionId, { action: 'act', ref, kind: 'press', tabId: tid, text: String(keyName), result: 'ok' });
   } else {
     throw new Error(`Unknown kind: ${kind}. Use: click|fill|type|check|press`);
   }
@@ -469,7 +488,15 @@ async function cmd_screenshot({ path, tabId } = {}) {
   const tid = tabId || currentTabId;
   const page = getPage(tid);
   const screenshotPath = path || `/tmp/screenshot-${sessionId}-${Date.now()}.png`;
-  await page.screenshot({ path: screenshotPath, fullPage: false });
+  try {
+    await page.screenshot({ path: screenshotPath, fullPage: false, timeout: 600000 });
+  } catch (e) {
+    if (e.message.includes('Timeout')) {
+      log(`Screenshot timed out on ${tid} — continuing without screenshot`);
+      return { ok: true, path: null, warning: 'Screenshot timed out but session is still active' };
+    }
+    throw e;
+  }
   return { ok: true, path: screenshotPath };
 }
 

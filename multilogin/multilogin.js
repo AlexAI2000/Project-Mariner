@@ -228,8 +228,27 @@ export async function startProfile(profileId, folderId = null) {
       120000  // 2 min timeout — browser may need to download on first start
     );
   } catch (e) {
+    // Handle LOCK_PROFILE_ERROR or SYNC_PROFILE_ERROR: stale state from crashed session
+    if (e.message.includes('LOCK_PROFILE_ERROR') || e.message.includes("can't lock profile") ||
+        e.message.includes('SYNC_PROFILE_ERROR') || e.message.includes("can't sync profile")) {
+      const errType = e.message.includes('SYNC') ? 'sync error' : 'stale lock';
+      process.stderr.write(`[multilogin] Profile ${profileId} has ${errType} — stopping and retrying...\n`);
+      try {
+        await launcherGet(`/api/v1/profile/stop/p/${profileId}`, token, 10000).catch(() => {});
+      } catch {}
+      await new Promise(r => setTimeout(r, 5000));
+      // Retry start
+      try {
+        startData = await launcherGet(
+          `/api/v2/profile/f/${folder}/p/${profileId}/start?automation_type=playwright&headless_mode=false`,
+          token, 120000
+        );
+      } catch (e2) {
+        throw new Error(`Profile ${profileId} ${errType} could not be cleared after retry: ${e2.message}`);
+      }
+    }
     // Handle PROFILE_ALREADY_RUNNING: browser is open, try to get port from running-profile endpoint
-    if (e.message.includes('PROFILE_ALREADY_RUNNING')) {
+    else if (e.message.includes('PROFILE_ALREADY_RUNNING')) {
       profileAlreadyRunning = true;
       process.stderr.write(`[multilogin] Profile ${profileId} already running — fetching running port\n`);
       try {

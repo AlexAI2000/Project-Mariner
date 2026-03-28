@@ -225,6 +225,43 @@ function fireCallback(callbackUrl, payload) {
   }
 }
 
+// ─── MLX Agent health check & auto-restart ───────────────────────────────────
+
+const MLX_HEALTH_URL = `http://${process.env.MULTILOGIN_CDP_HOST || '172.18.0.3'}:45060`;
+
+async function checkMlxHealth() {
+  try {
+    const res = await fetch(`${MLX_HEALTH_URL}/health`, { signal: AbortSignal.timeout(5000) });
+    const data = await res.json();
+    return {
+      healthy: data.healthy === true,
+      agent_running: data.agent_running === true,
+      message: data.healthy ? 'MLX agent is connected and responding' : 'MLX agent is down',
+    };
+  } catch (e) {
+    return { healthy: false, agent_running: false, message: `Health check unreachable: ${e.message}` };
+  }
+}
+
+async function restartMlxAgent() {
+  log('info', 'restarting MLX agent on visual-vps');
+  try {
+    const res = await fetch(`${MLX_HEALTH_URL}/restart`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(25000),
+    });
+    const data = await res.json();
+    log('info', 'MLX agent restart result', { healthy: data.healthy });
+    return {
+      healthy: data.healthy === true,
+      message: data.message || (data.healthy ? 'Agent restarted' : 'Agent restart failed'),
+    };
+  } catch (e) {
+    log('error', 'MLX agent restart failed', { error: e.message });
+    return { healthy: false, message: `Restart failed: ${e.message}` };
+  }
+}
+
 // ─── Session status check ─────────────────────────────────────────────────────
 
 function getSessionStatus(sessionId) {
@@ -269,6 +306,15 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // ── GET /health/mlx (no auth) — MLX agent health + auto-reconnect ────────
+  if (req.method === 'GET' && url === '/health/mlx') {
+    const check = await checkMlxHealth();
+    return send(res, check.healthy ? 200 : 503, check);
+  }
+
+  // ── POST /health/mlx/restart (auth required below) — restart MLX agent ──
+  // handled after auth gate
+
   // ── Auth gate for all other routes ────────────────────────────────────────
   if (!validateToken(req)) {
     log('warn', 'unauthorized', { ip, url });
@@ -278,6 +324,13 @@ const server = http.createServer(async (req, res) => {
   if (!checkRate(ip)) {
     log('warn', 'rate limit', { ip });
     return send(res, 429, { success: false, error: 'rate limit exceeded' });
+  }
+
+  // ── POST /health/mlx/restart — restart MLX agent (authenticated) ─────────
+  if (req.method === 'POST' && url === '/health/mlx/restart') {
+    log('info', 'MLX agent restart requested', { ip });
+    const result = await restartMlxAgent();
+    return send(res, result.healthy ? 200 : 500, result);
   }
 
   // ── POST /mariner/session/start ───────────────────────────────────────────
@@ -311,37 +364,152 @@ const server = http.createServer(async (req, res) => {
       message:     'Browser session starting. Callback will fire when ready.',
     });
 
-    // Start the browser in background
+    // ── Self-healing browser startup with automatic retry ──────────────────
+    //
+    // The VPS takes FULL responsibility for getting the browser open.
+    // Lovable only receives a callback when the browser is actually ready.
+    // If something fails, the VPS diagnoses, fixes, and retries automatically.
+
+    const MAX_RETRIES = 3;
     const args = ['--session', sessionId, '--account', accountId];
     if (clientName) args.push('--clientName', clientName);
-
     const t0 = Date.now();
-    runCommand(`node /data/browser-cli/start-session.js ${args.join(' ')}`, SES_TIMEOUT)
-      .then(result => {
-        let parsed = {};
-        try { parsed = JSON.parse(result.stdout.trim()); } catch {}
 
-        const payload = {
-          event:       'session_ready',
-          success:     result.success && parsed.ok === true,
-          executionId,
-          sessionId,
-          accountId,
-          daemonPid:   parsed.daemonPid   || null,
-          cdpUrl:      parsed.cdpUrl       || null,
-          mlProfileId: parsed.mlProfileId  || null,
-          socketPath:  parsed.socketPath   || null,
-          logFile:     parsed.logFile      || null,
-          durationMs:  Date.now() - t0,
-          error:       result.success ? (parsed.ok ? null : parsed.error) : result.stderr,
-        };
+    // Step 1: Clean up stale sessions for this account
+    const cleanupStale = async () => {
+      try {
+        const pidFiles = fs.readdirSync('/tmp').filter(f => f.startsWith('browser-cli-daemon-') && f.endsWith('.pid'));
+        for (const pf of pidFiles) {
+          const oldId = pf.replace('browser-cli-daemon-', '').replace('.pid', '');
+          await runCommand(`node /data/browser-cli/stop-session.js --session ${oldId}`, 10000).catch(() => {});
+          log('info', 'cleaned up stale daemon', { oldSessionId: oldId });
+        }
+        const clientsRaw = fs.readFileSync('/data/clients/clients.json', 'utf8');
+        const client = JSON.parse(clientsRaw)[accountId];
+        const profileId = client?.mlProfile?.profileId;
+        if (profileId) {
+          await runCommand(
+            `node -e "import('/data/multilogin/multilogin.js').then(m => m.stopProfile('${profileId}').catch(() => {}))"`,
+            15000
+          ).catch(() => {});
+          log('info', 'stopped existing MLX profile', { profileId });
+        }
+      } catch (e) {
+        log('warn', 'cleanup failed (non-fatal)', { error: e.message });
+      }
+    };
 
-        log('info', payload.success ? 'session ready' : 'session start failed', {
-          executionId, sessionId, durationMs: payload.durationMs,
-        });
+    // Step 2: Ensure MLX agent is alive
+    const ensureMlxAlive = async () => {
+      const health = await checkMlxHealth();
+      if (!health.healthy) {
+        log('warn', 'MLX agent down — auto-restarting', { accountId });
+        const r = await restartMlxAgent();
+        if (!r.healthy) throw new Error('MLX agent could not be restarted');
+        log('info', 'MLX agent restarted successfully');
+        await new Promise(r => setTimeout(r, 3000)); // let it settle
+      }
+    };
 
-        fireCallback(callbackUrl, payload);
-      });
+    // Step 3: Try to start the browser
+    const tryStart = async () => {
+      const result = await runCommand(`node /data/browser-cli/start-session.js ${args.join(' ')}`, SES_TIMEOUT);
+      let parsed = {};
+      try { parsed = JSON.parse(result.stdout.trim()); } catch {}
+      if (result.success && parsed.ok === true) return parsed;
+      const err = parsed.error || result.stderr || 'Unknown error';
+      throw new Error(err);
+    };
+
+    // Step 4: Diagnose and fix errors
+    const diagnoseAndFix = async (errorMsg, attempt) => {
+      log('warn', `browser start failed (attempt ${attempt}/${MAX_RETRIES}) — diagnosing`, { accountId, error: errorMsg.slice(0, 200) });
+
+      if (errorMsg.includes('SYNC_PROFILE_ERROR') || errorMsg.includes("can't sync") ||
+          errorMsg.includes('LOCK_PROFILE_ERROR') || errorMsg.includes("can't lock") ||
+          errorMsg.includes('Cannot reach MultiLogin X launcher') ||
+          errorMsg.includes('fetch failed')) {
+        // Agent needs restart + full cleanup (stale Chrome, locks, sync state)
+        log('info', 'restarting MLX agent to clear stale state', { accountId });
+        await restartMlxAgent();
+        await new Promise(r => setTimeout(r, 5000));
+      } else if (errorMsg.includes('Daemon socket never appeared')) {
+        // Daemon spawn failed — just retry, might be transient
+        await new Promise(r => setTimeout(r, 2000));
+      } else if (errorMsg.includes('PROFILE_ALREADY_RUNNING')) {
+        // Stop the profile and retry
+        try {
+          const clientsRaw = fs.readFileSync('/data/clients/clients.json', 'utf8');
+          const client = JSON.parse(clientsRaw)[accountId];
+          const profileId = client?.mlProfile?.profileId;
+          if (profileId) {
+            await runCommand(
+              `node -e "import('/data/multilogin/multilogin.js').then(m => m.stopProfile('${profileId}').catch(() => {}))"`,
+              15000
+            ).catch(() => {});
+          }
+        } catch {}
+        await new Promise(r => setTimeout(r, 3000));
+      } else {
+        // Unknown error — nuclear option: restart agent
+        log('info', 'unknown error — restarting MLX agent as fallback', { accountId });
+        await restartMlxAgent();
+        await new Promise(r => setTimeout(r, 5000));
+      }
+    };
+
+    // Main loop: cleanup → ensure agent → try start → diagnose+fix → retry
+    (async () => {
+      await cleanupStale();
+      await ensureMlxAlive();
+
+      let lastError = null;
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          const parsed = await tryStart();
+
+          // SUCCESS — callback to Lovable
+          const payload = {
+            event:       'session_ready',
+            success:     true,
+            executionId,
+            sessionId,
+            accountId,
+            daemonPid:   parsed.daemonPid   || null,
+            cdpUrl:      parsed.cdpUrl       || null,
+            mlProfileId: parsed.mlProfileId  || null,
+            socketPath:  parsed.socketPath   || null,
+            logFile:     parsed.logFile      || null,
+            durationMs:  Date.now() - t0,
+            error:       null,
+            error_code:  null,
+          };
+          log('info', 'session ready', { executionId, sessionId, attempt, durationMs: payload.durationMs });
+          fireCallback(callbackUrl, payload);
+          return;
+
+        } catch (e) {
+          lastError = e.message;
+          if (attempt < MAX_RETRIES) {
+            await diagnoseAndFix(e.message, attempt);
+          }
+        }
+      }
+
+      // ALL RETRIES EXHAUSTED — only now tell Lovable it failed
+      const payload = {
+        event:       'session_ready',
+        success:     false,
+        executionId,
+        sessionId,
+        accountId,
+        durationMs:  Date.now() - t0,
+        error:       `Browser startup failed after ${MAX_RETRIES} attempts. Last error: ${lastError}`,
+        error_code:  'STARTUP_EXHAUSTED',
+      };
+      log('error', 'session start exhausted all retries', { executionId, sessionId, attempts: MAX_RETRIES });
+      fireCallback(callbackUrl, payload);
+    })();
 
     return;
   }
