@@ -131,62 +131,16 @@ async function getA11yTreeViaJSFallback(page) {
 }
 
 async function getA11yTree(page) {
-  // Wait for DOM to be ready
-  await page.waitForLoadState('domcontentloaded', { timeout: 3600000 }).catch(() => {});
-  // Wait for full load — catches SPA pages that need JS hydration before a11y tree populates
-  await page.waitForLoadState('load', { timeout: 3600000 }).catch(() => {});
-  // Fixed settle time for SPA frameworks (React/LinkedIn) to hydrate — random 11-15s
-  await new Promise(r => setTimeout(r, 11000 + Math.random() * 4000));
+  // Wait for network to be idle (no pending requests) — this catches SPA navigations
+  // where the URL changes via JavaScript and content loads via API calls.
+  // 5s timeout: if network is still busy after 5s, proceed anyway.
+  await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
 
-  // Stability check: take snapshot, wait, take again — if element count is stable, page is done
-  // Safety cap: max 60 seconds of stability checking (on top of the 11-15s settle above)
-  const MAX_STABILITY_MS = 60000;
-  const started = Date.now();
-  let prevCount = 0;
+  // Fixed settle time: 25 seconds — gives the page plenty of time to fully render
+  // all React components, lazy-loaded content, and dynamic elements.
+  await new Promise(r => setTimeout(r, 25000));
 
-  for (let round = 1; (Date.now() - started) < MAX_STABILITY_MS; round++) {
-    try {
-      const tree = await Promise.race([
-        page.accessibility.snapshot({ interestingOnly: true }),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('CDP a11y timeout')), 30000)),
-      ]);
-
-      if (tree) {
-        const results = [], seen = new Set();
-        walkA11yTree(tree, results, seen);
-        const count = results.length;
-
-        // Page is stable: element count matches previous check and we have a rich tree
-        if (count >= 10 && count === prevCount) {
-          return results; // stable and rich — done
-        }
-
-        // Page is stable but sparse (e.g. simple page with few elements)
-        if (count >= 3 && count === prevCount && round >= 3) {
-          return results; // accept after 3 stability rounds even if sparse
-        }
-
-        prevCount = count;
-      }
-    } catch (_) {
-      // CDP a11y timeout — will retry
-    }
-
-    // Wait before next stability check: 2s first, then 5s for subsequent rounds
-    const waitMs = round === 1 ? 2000 : 5000;
-    await new Promise(r => setTimeout(r, waitMs));
-  }
-
-  // Safety fallback: if stability check exhausted, take one final snapshot and return whatever we get
-  try {
-    const tree = await page.accessibility.snapshot({ interestingOnly: true });
-    if (tree) {
-      const results = [], seen = new Set();
-      walkA11yTree(tree, results, seen);
-      if (results.length > 0) return results;
-    }
-  } catch (_) {}
-
+  // Query the actual DOM directly — always returns the complete, real page content.
   return getA11yTreeViaJSFallback(page);
 }
 

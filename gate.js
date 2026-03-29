@@ -378,12 +378,10 @@ const server = http.createServer(async (req, res) => {
     // Step 1: Clean up stale sessions for this account
     const cleanupStale = async () => {
       try {
-        const pidFiles = fs.readdirSync('/tmp').filter(f => f.startsWith('browser-cli-daemon-') && f.endsWith('.pid'));
-        for (const pf of pidFiles) {
-          const oldId = pf.replace('browser-cli-daemon-', '').replace('.pid', '');
-          await runCommand(`node /data/browser-cli/stop-session.js --session ${oldId}`, 10000).catch(() => {});
-          log('info', 'cleaned up stale daemon', { oldSessionId: oldId });
-        }
+        // Only stop the MLX browser profile for THIS account.
+        // This closes the browser window. The daemon stays alive — it will be
+        // replaced by the new session's daemon. We NEVER kill daemons directly.
+        // Only the Lovable backend can close a session (via POST /mariner/session/stop).
         const clientsRaw = fs.readFileSync('/data/clients/clients.json', 'utf8');
         const client = JSON.parse(clientsRaw)[accountId];
         const profileId = client?.mlProfile?.profileId;
@@ -392,7 +390,7 @@ const server = http.createServer(async (req, res) => {
             `node -e "import('/data/multilogin/multilogin.js').then(m => m.stopProfile('${profileId}').catch(() => {}))"`,
             15000
           ).catch(() => {});
-          log('info', 'stopped existing MLX profile', { profileId });
+          log('info', 'stopped existing MLX profile for account', { profileId, accountId });
         }
       } catch (e) {
         log('warn', 'cleanup failed (non-fatal)', { error: e.message });
@@ -509,6 +507,105 @@ const server = http.createServer(async (req, res) => {
       };
       log('error', 'session start exhausted all retries', { executionId, sessionId, attempts: MAX_RETRIES });
       fireCallback(callbackUrl, payload);
+    })();
+
+    return;
+  }
+
+  // ── POST /mariner/auto-session ──────────────────────────────────────────
+  //
+  // Fully automated LinkedIn task execution. Opens browser, runs a randomized
+  // behavioral chain (search, engage, message/connect), fires callback when done.
+  // No AI agent needed — pure code automation with humanized random algorithms.
+  //
+  if (req.method === 'POST' && url === '/mariner/auto-session') {
+    let body;
+    try { body = await parseBody(req); } catch (e) { return send(res, 400, { success: false, error: e.message }); }
+
+    const accountId   = body.accountId || body.account_id;
+    const clientName  = body.clientName || body.client_name;
+    const callbackUrl = body.callbackUrl || body.callback_url;
+    const executionId = body.executionId || body.callback_metadata?.execution_id || crypto.randomUUID();
+    const sessionId   = `ms-${crypto.randomUUID().slice(0, 8)}`;
+    const task        = body.task;
+
+    if (!accountId) return send(res, 400, { success: false, error: 'account_id is required' });
+    if (!task || !task.type) return send(res, 400, { success: false, error: 'task.type is required (send_message, send_connection, warm_up)' });
+
+    log('info', 'auto-session requested', { executionId, sessionId, accountId, taskType: task.type });
+
+    // Respond immediately
+    send(res, 202, {
+      accepted:    true,
+      sessionId,
+      executionId,
+      accountId,
+      taskType:    task.type,
+      message:     `Auto-session starting for ${clientName || accountId}. Task: ${task.type}. Callback will fire when complete.`,
+    });
+
+    // Start browser + run chain in background (uses same self-healing startup as session/start)
+    const startArgs = ['--session', sessionId, '--account', accountId];
+    if (clientName) startArgs.push('--clientName', clientName);
+
+    (async () => {
+      const t0 = Date.now();
+
+      // Phase 1: Clean up + ensure MLX + start browser (same as session/start)
+      try {
+        try {
+          const clientsRaw = fs.readFileSync('/data/clients/clients.json', 'utf8');
+          const client = JSON.parse(clientsRaw)[accountId];
+          const profileId = client?.mlProfile?.profileId;
+          if (profileId) {
+            await runCommand(
+              `node -e "import('/data/multilogin/multilogin.js').then(m => m.stopProfile('${profileId}').catch(() => {}))"`,
+              15000
+            ).catch(() => {});
+          }
+        } catch {}
+
+        const health = await checkMlxHealth();
+        if (!health.healthy) {
+          await restartMlxAgent();
+          await new Promise(r => setTimeout(r, 3000));
+        }
+
+        const startResult = await runCommand(
+          `node /data/browser-cli/start-session.js ${startArgs.join(' ')}`,
+          SES_TIMEOUT
+        );
+
+        let parsed = {};
+        try { parsed = JSON.parse(startResult.stdout.trim()); } catch {}
+
+        if (!startResult.success || !parsed.ok) {
+          throw new Error(parsed.error || startResult.stderr || 'Browser start failed');
+        }
+
+        log('info', 'auto-session browser ready', { executionId, sessionId, durationMs: Date.now() - t0 });
+      } catch (e) {
+        log('error', 'auto-session browser start failed', { executionId, error: e.message });
+        fireCallback(callbackUrl, {
+          event: 'task_complete',
+          success: false,
+          executionId,
+          sessionId,
+          accountId,
+          taskType: task.type,
+          error: `Browser startup failed: ${e.message}`,
+        });
+        return;
+      }
+
+      // Phase 2: Run the chain engine
+      const taskJson = JSON.stringify({ ...task, account_id: accountId });
+      const chainCmd = `node /data/automation/chain-engine.js '${sessionId}' '${taskJson.replace(/'/g, "'\\''")}' '${callbackUrl || ''}' '${executionId}'`;
+
+      log('info', 'auto-session chain starting', { executionId, sessionId, taskType: task.type });
+      await runCommand(chainCmd, 3600000); // 1 hour max for the full chain
+
+      log('info', 'auto-session chain finished', { executionId, sessionId, durationMs: Date.now() - t0 });
     })();
 
     return;

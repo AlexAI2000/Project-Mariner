@@ -307,10 +307,11 @@ async function closeTab(tabId) {
 async function cmd_snapshot({ tabId } = {}) {
   const tid = tabId || currentTabId;
   const page = getPage(tid);
-  // Hard 60s abort — outer guard; inner budget: 3s domcontentloaded + 8s load + 20s CDP + 9s JS fallback = ~40s max
+  // Hard timeout: 1 hour — the snapshot function handles its own timing internally
+  // (11-15s settle + stability check up to 60s). This outer guard is just a safety net.
   const result = await Promise.race([
     snapshot(page),
-    new Promise((_, rej) => setTimeout(() => rej(new Error('Snapshot daemon hard timeout: 60s')), 60000)),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('Snapshot daemon hard timeout: 3600s')), 3600000)),
   ]);
   snapshotCache.set(tid, { refs: result.refs, url: result.url });
   logSnapshot(sessionId, { tabId: tid, url: result.url, refCount: result.refCount });
@@ -366,6 +367,15 @@ async function cmd_act({ ref, kind, text, key, tabId } = {}) {
     coords = await humanClick(page, locator, ms);
     // Human-like thinking pause: 5–11 seconds (lets UI settle + looks natural)
     await new Promise(r => setTimeout(r, 5000 + Math.random() * 6000));
+    // Auto-clear: select all existing text + delete it (human-like timing)
+    await new Promise(r => setTimeout(r, 300 + Math.random() * 500));   // 300-800ms before Ctrl+A
+    await page.keyboard.down('Control');
+    await new Promise(r => setTimeout(r, 200 + Math.random() * 300));   // 200-500ms hold
+    await page.keyboard.press('a');
+    await page.keyboard.up('Control');
+    await new Promise(r => setTimeout(r, 300 + Math.random() * 500));   // 300-800ms before Backspace
+    await page.keyboard.press('Backspace');
+    await new Promise(r => setTimeout(r, 400 + Math.random() * 400));   // 400-800ms before typing
     await humanType(page, text);
     logAction(sessionId, { action: 'act', ref, kind: 'type', tabId: tid, text: String(text || '').slice(0, 80), result: 'ok' });
   } else if (kind === 'check') {
@@ -754,8 +764,8 @@ function startServer() {
   });
 
   server.on('error', err => {
-    log(`Server error: ${err.message}`);
-    process.exit(1);
+    log(`Server error (non-fatal, daemon continues): ${err.message}`);
+    // Do NOT exit — the daemon must stay alive. Socket errors are recoverable.
   });
 }
 
