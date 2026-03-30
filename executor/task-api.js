@@ -411,25 +411,52 @@ async function handleMarinerWorkingSession(req, res) {
   const safeClientName = clientName.replace(/'/g, '').replace(/"/g, '');
   const tasksJson = JSON.stringify(incomingTasks);
 
-  const sessionTasks = [
-    {
-      id: 'ensure-client',
-      type: 'bash',
-      label: `Ensure client entry for ${accountId}`,
-      command: `node /data/clients/client-manager.js ensure '${safeAccountId}' '${safeClientName}'`,
-    },
-    {
-      id: 'execute-working-session',
-      type: 'bash',
-      label: `Execute working session (${incomingTasks.length} task${incomingTasks.length !== 1 ? 's' : ''}) for ${clientName}`,
-      command:
-        `node /data/executor/trigger-working-session.js ` +
-        `'${safeAccountId}' '${safeClientName}' ` +
-        `${JSON.stringify(tasksJson)} ` +
-        `${JSON.stringify(callbackUrl)} ` +
-        `${JSON.stringify(executionId)}`,
-    },
-  ];
+  // Detect if any tasks use browser_use (natural language prompt tasks)
+  const hasBrowserUseTasks = incomingTasks.some(t => t.task_type === 'browser_use');
+
+  let sessionTasks;
+
+  if (hasBrowserUseTasks) {
+    // ── browser-use path: natural language tasks via browser-use Python agent ──
+    // Ensure client first, then run each browser_use task individually
+    sessionTasks = [
+      {
+        id: 'ensure-client',
+        type: 'bash',
+        label: `Ensure client entry for ${accountId}`,
+        command: `node /data/clients/client-manager.js ensure '${safeAccountId}' '${safeClientName}'`,
+      },
+      ...incomingTasks.map((t, idx) => ({
+        id: t.id || `bu-task-${idx + 1}`,
+        type: 'browser_use',
+        prompt: t.prompt || t.details?.prompt || `Execute: ${t.task_type}`,
+        label: (t.prompt || t.task_type || `Task ${idx + 1}`).slice(0, 80),
+        maxSteps: t.max_steps || 100,
+        timeout: t.timeout || 600,
+      })),
+    ];
+  } else {
+    // ── Legacy path: dispatch to Mariner director agent via trigger-working-session.js ──
+    sessionTasks = [
+      {
+        id: 'ensure-client',
+        type: 'bash',
+        label: `Ensure client entry for ${accountId}`,
+        command: `node /data/clients/client-manager.js ensure '${safeAccountId}' '${safeClientName}'`,
+      },
+      {
+        id: 'execute-working-session',
+        type: 'bash',
+        label: `Execute working session (${incomingTasks.length} task${incomingTasks.length !== 1 ? 's' : ''}) for ${clientName}`,
+        command:
+          `node /data/executor/trigger-working-session.js ` +
+          `'${safeAccountId}' '${safeClientName}' ` +
+          `${JSON.stringify(tasksJson)} ` +
+          `${JSON.stringify(callbackUrl)} ` +
+          `${JSON.stringify(executionId)}`,
+      },
+    ];
+  }
 
   const plan = {
     clientId: accountId,

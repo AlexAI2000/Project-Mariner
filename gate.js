@@ -526,13 +526,14 @@ const server = http.createServer(async (req, res) => {
     const clientName  = body.clientName || body.client_name;
     const callbackUrl = body.callbackUrl || body.callback_url;
     const executionId = body.executionId || body.callback_metadata?.execution_id || crypto.randomUUID();
-    const sessionId   = `ms-${crypto.randomUUID().slice(0, 8)}`;
+    const existingSessionId = body.sessionId || body.session_id;
+    const sessionId   = existingSessionId || `ms-${crypto.randomUUID().slice(0, 8)}`;
     const task        = body.task;
 
     if (!accountId) return send(res, 400, { success: false, error: 'account_id is required' });
     if (!task || !task.type) return send(res, 400, { success: false, error: 'task.type is required (send_message, send_connection, warm_up)' });
 
-    log('info', 'auto-session requested', { executionId, sessionId, accountId, taskType: task.type });
+    log('info', 'auto-session requested', { executionId, sessionId, accountId, taskType: task.type, reuse: !!existingSessionId });
 
     // Respond immediately
     send(res, 202, {
@@ -541,61 +542,77 @@ const server = http.createServer(async (req, res) => {
       executionId,
       accountId,
       taskType:    task.type,
-      message:     `Auto-session starting for ${clientName || accountId}. Task: ${task.type}. Callback will fire when complete.`,
+      message:     `Auto-session ${existingSessionId ? 'reusing' : 'starting'} for ${clientName || accountId}. Task: ${task.type}. Callback will fire when complete.`,
     });
 
-    // Start browser + run chain in background (uses same self-healing startup as session/start)
     const startArgs = ['--session', sessionId, '--account', accountId];
     if (clientName) startArgs.push('--clientName', clientName);
 
     (async () => {
       const t0 = Date.now();
 
-      // Phase 1: Clean up + ensure MLX + start browser (same as session/start)
-      try {
+      // Phase 1: Start browser (skip if reusing existing session)
+      if (existingSessionId) {
+        // Reusing existing session — check if daemon is alive
+        const socketPath = `/tmp/browser-cli-${existingSessionId}.sock`;
+        if (!fs.existsSync(socketPath)) {
+          log('warn', 'existing session socket gone — opening fresh browser', { sessionId });
+          // Fall through to browser startup below
+        } else {
+          log('info', 'reusing existing session', { sessionId });
+          // Skip straight to chain execution (Phase 2 below)
+        }
+      }
+
+      // Only start browser if no existing session or socket is gone
+      const socketPath = `/tmp/browser-cli-${sessionId}.sock`;
+      if (!fs.existsSync(socketPath)) {
         try {
-          const clientsRaw = fs.readFileSync('/data/clients/clients.json', 'utf8');
-          const client = JSON.parse(clientsRaw)[accountId];
-          const profileId = client?.mlProfile?.profileId;
-          if (profileId) {
-            await runCommand(
-              `node -e "import('/data/multilogin/multilogin.js').then(m => m.stopProfile('${profileId}').catch(() => {}))"`,
-              15000
-            ).catch(() => {});
+          // Stop existing MLX profile for this account
+          try {
+            const clientsRaw = fs.readFileSync('/data/clients/clients.json', 'utf8');
+            const client = JSON.parse(clientsRaw)[accountId];
+            const profileId = client?.mlProfile?.profileId;
+            if (profileId) {
+              await runCommand(
+                `node -e "import('/data/multilogin/multilogin.js').then(m => m.stopProfile('${profileId}').catch(() => {}))"`,
+                15000
+              ).catch(() => {});
+            }
+          } catch {}
+
+          const health = await checkMlxHealth();
+          if (!health.healthy) {
+            await restartMlxAgent();
+            await new Promise(r => setTimeout(r, 3000));
           }
-        } catch {}
 
-        const health = await checkMlxHealth();
-        if (!health.healthy) {
-          await restartMlxAgent();
-          await new Promise(r => setTimeout(r, 3000));
+          const startResult = await runCommand(
+            `node /data/browser-cli/start-session.js ${startArgs.join(' ')}`,
+            SES_TIMEOUT
+          );
+
+          let parsed = {};
+          try { parsed = JSON.parse(startResult.stdout.trim()); } catch {}
+
+          if (!startResult.success || !parsed.ok) {
+            throw new Error(parsed.error || startResult.stderr || 'Browser start failed');
+          }
+
+          log('info', 'auto-session browser ready', { executionId, sessionId, durationMs: Date.now() - t0 });
+        } catch (e) {
+          log('error', 'auto-session browser start failed', { executionId, error: e.message });
+          fireCallback(callbackUrl, {
+            event: 'task_complete',
+            success: false,
+            executionId,
+            sessionId,
+            accountId,
+            taskType: task.type,
+            error: `Browser startup failed: ${e.message}`,
+          });
+          return;
         }
-
-        const startResult = await runCommand(
-          `node /data/browser-cli/start-session.js ${startArgs.join(' ')}`,
-          SES_TIMEOUT
-        );
-
-        let parsed = {};
-        try { parsed = JSON.parse(startResult.stdout.trim()); } catch {}
-
-        if (!startResult.success || !parsed.ok) {
-          throw new Error(parsed.error || startResult.stderr || 'Browser start failed');
-        }
-
-        log('info', 'auto-session browser ready', { executionId, sessionId, durationMs: Date.now() - t0 });
-      } catch (e) {
-        log('error', 'auto-session browser start failed', { executionId, error: e.message });
-        fireCallback(callbackUrl, {
-          event: 'task_complete',
-          success: false,
-          executionId,
-          sessionId,
-          accountId,
-          taskType: task.type,
-          error: `Browser startup failed: ${e.message}`,
-        });
-        return;
       }
 
       // Phase 2: Run the chain engine

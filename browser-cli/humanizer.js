@@ -74,79 +74,108 @@ function walkA11yTree(node, results, seen) {
 // Fallback: JS-side evaluate — light DOM only, no getComputedStyle, 5s budget.
 // Returns [] on any error so snapshot() never hard-fails.
 async function getA11yTreeViaJSFallback(page) {
-  return Promise.race([
-    page.evaluate(() => {
-      const TAG_ROLES = {
-        button:'button', a:'link', select:'combobox', textarea:'textbox',
-        h1:'heading',h2:'heading',h3:'heading',h4:'heading',h5:'heading',h6:'heading',
-      };
-      function getRole(el) {
-        const r = el.getAttribute('role');
-        if (r && r !== 'presentation' && r !== 'none') return r;
-        const tag = el.tagName.toLowerCase();
-        if (tag === 'input') {
-          const t = (el.type || 'text').toLowerCase();
-          if (t === 'checkbox') return 'checkbox';
-          if (t === 'radio') return 'radio';
-          if (t === 'search') return 'searchbox';
-          if (['text','email','password','tel','url','number','date'].includes(t)) return 'textbox';
-          if (['button','submit','reset'].includes(t)) return 'button';
-          return '';
-        }
-        return TAG_ROLES[tag] || '';
-      }
-      function getName(el) {
-        let v = el.getAttribute('aria-label'); if (v?.trim()) return v.trim();
-        v = el.getAttribute('placeholder'); if (v?.trim()) return v.trim();
-        v = el.getAttribute('title'); if (v?.trim()) return v.trim();
-        v = el.getAttribute('alt'); if (v?.trim()) return v.trim();
-        v = el.textContent?.trim(); if (v && v.length > 0 && v.length <= 120) return v;
+  // LinkedIn renders content inside hidden iframes/frames.
+  // We query ALL frames and merge results, taking the richest one.
+  const queryFn = () => {
+    const TAG_ROLES = {
+      button:'button', a:'link', select:'combobox', textarea:'textbox',
+      h1:'heading',h2:'heading',h3:'heading',h4:'heading',h5:'heading',h6:'heading',
+    };
+    function getRole(el) {
+      const r = el.getAttribute('role');
+      if (r && r !== 'presentation' && r !== 'none') return r;
+      const tag = el.tagName.toLowerCase();
+      if (tag === 'input') {
+        const t = (el.type || 'text').toLowerCase();
+        if (t === 'checkbox') return 'checkbox';
+        if (t === 'radio') return 'radio';
+        if (t === 'search') return 'searchbox';
+        if (['text','email','password','tel','url','number','date'].includes(t)) return 'textbox';
+        if (['button','submit','reset'].includes(t)) return 'button';
         return '';
       }
-      const SELECTOR = 'button,a,input,select,textarea,h1,h2,h3,h4,h5,h6'
-        + ',[role="button"],[role="link"],[role="textbox"],[role="searchbox"]'
-        + ',[role="checkbox"],[role="radio"],[role="combobox"],[role="menuitem"],[role="tab"]';
-      const results = [], seen = new Set();
-      const t0 = Date.now();
-      for (const el of document.querySelectorAll(SELECTOR)) {
-        if (Date.now() - t0 > 8000 || results.length >= 200) break;
-        const role = getRole(el); if (!role) continue;
-        const name = getName(el); if (!name) continue;
-        const key = role + '::' + name.slice(0, 60);
-        if (seen.has(key)) continue;
-        seen.add(key);
-        const r = el.getBoundingClientRect();
-        if (r.width === 0 && r.height === 0) continue;
-        results.push({
-          role, name,
-          value: el.value || '',
-          checked: el.checked !== undefined ? el.checked : undefined,
-          disabled: !!(el.disabled),
-        });
+      return TAG_ROLES[tag] || '';
+    }
+    function getName(el) {
+      let v = el.getAttribute('aria-label'); if (v?.trim()) return v.trim();
+      v = el.getAttribute('placeholder'); if (v?.trim()) return v.trim();
+      v = el.getAttribute('title'); if (v?.trim()) return v.trim();
+      v = el.getAttribute('alt'); if (v?.trim()) return v.trim();
+      v = el.textContent?.trim(); if (v && v.length > 0 && v.length <= 120) return v;
+      return '';
+    }
+    const SELECTOR = 'button,a,input,select,textarea,h1,h2,h3,h4,h5,h6'
+      + ',[role="button"],[role="link"],[role="textbox"],[role="searchbox"]'
+      + ',[role="checkbox"],[role="radio"],[role="combobox"],[role="menuitem"],[role="tab"]';
+    const results = [], nameCount = new Map();
+    const t0 = Date.now();
+    for (const el of document.querySelectorAll(SELECTOR)) {
+      if (Date.now() - t0 > 8000 || results.length >= 500) break;
+      const role = getRole(el); if (!role) continue;
+      const name = getName(el); if (!name) continue;
+      // Track how many times we've seen this role+name combo
+      const baseKey = role + '::' + name.slice(0, 60);
+      const idx = nameCount.get(baseKey) || 0;
+      nameCount.set(baseKey, idx + 1);
+      results.push({
+        role, name,
+        dupIndex: idx,
+        value: el.value || '',
+        checked: el.checked !== undefined ? el.checked : undefined,
+        disabled: !!(el.disabled),
+      });
+    }
+    return results;
+  };
+
+  try {
+    // Query all frames in parallel and take the richest result
+    const frames = page.frames();
+    const frameResults = await Promise.race([
+      Promise.all(
+        frames.map(f => f.evaluate(queryFn).catch(() => []))
+      ),
+      new Promise(r => setTimeout(() => r([[]]), 15000)),
+    ]);
+
+    // Merge all frame results — NO deduplication, keep everything
+    const merged = [], nameCount = new Map();
+    // Sort frames by result count descending — richest frame first
+    const sorted = [...frameResults].sort((a, b) => b.length - a.length);
+    for (const frameElems of sorted) {
+      for (const el of frameElems) {
+        const baseKey = el.role + '::' + (el.name || '').slice(0, 60);
+        const idx = nameCount.get(baseKey) || 0;
+        nameCount.set(baseKey, idx + 1);
+        el.dupIndex = idx;
+        merged.push(el);
+        if (merged.length >= 500) break;
       }
-      return results;
-    }),
-    new Promise(r => setTimeout(() => r([]), 9000)), // resolve empty on timeout, never reject
-  ]).catch(() => []);
+      if (merged.length >= 500) break;
+    }
+
+    return merged;
+  } catch {
+    return [];
+  }
 }
 
-async function getA11yTree(page) {
-  // Wait for network to be idle (no pending requests) — this catches SPA navigations
-  // where the URL changes via JavaScript and content loads via API calls.
-  // 5s timeout: if network is still busy after 5s, proceed anyway.
-  await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
+async function getA11yTree(page, { afterNavigation = false } = {}) {
+  if (afterNavigation) {
+    // After navigation: fixed 8-12s settle (no networkidle — LinkedIn never goes idle)
+    await new Promise(r => setTimeout(r, 8000 + Math.random() * 4000));
+  } else {
+    // Normal snapshot: 2-3s
+    await new Promise(r => setTimeout(r, 2000 + Math.random() * 1000));
+  }
 
-  // Fixed settle time: 25 seconds — gives the page plenty of time to fully render
-  // all React components, lazy-loaded content, and dynamic elements.
-  await new Promise(r => setTimeout(r, 25000));
-
-  // Query the actual DOM directly — always returns the complete, real page content.
+  // Query the actual DOM directly across all frames
   return getA11yTreeViaJSFallback(page);
 }
 
 // Take accessibility tree snapshot of current page, return ref map + formatted list
-export async function snapshot(page) {
-  const nodes = await getA11yTree(page);
+export async function snapshot(page, { afterNavigation = false } = {}) {
+  const nodes = await getA11yTree(page, { afterNavigation });
   const refs = {};
   let n = 1;
   for (const node of (nodes || [])) {
@@ -187,16 +216,60 @@ export async function snapshot(page) {
 
 // Find Playwright locator for a given ref from snapshot
 export function locatorForRef(page, refObj) {
-  const { role, name } = refObj;
+  const { role, name, dupIndex } = refObj;
+  if (!role && !name) return null;
+  const idx = dupIndex || 0;
 
-  // Build ARIA locator — use .first() to handle multiple matches (e.g. YouTube has
-  // several elements with the same ARIA role+name in different DOM layers)
   if (role && name) {
-    return page.getByRole(role, { name, exact: false }).first();
+    return page.getByRole(role, { name, exact: false }).nth(idx);
   }
   if (name) {
-    return page.getByText(name, { exact: false }).first();
+    return page.getByText(name, { exact: false }).nth(idx);
   }
+  return null;
+}
+
+// Search all frames for an element — used when main page locator fails
+export async function locatorForRefAcrossFrames(page, refObj) {
+  const { role, name, dupIndex } = refObj;
+  if (!name) return null;
+  const idx = dupIndex || 0;
+
+  const frames = page.frames();
+  for (const frame of frames) {
+    try {
+      // Strategy 1: getByRole
+      if (role) {
+        const shortName = name.slice(0, 40);
+        const locator = frame.getByRole(role, { name: shortName, exact: false }).nth(idx);
+        const count = await locator.count().catch(() => 0);
+        if (count > 0) return locator;
+      }
+
+      // Strategy 2: getByPlaceholder (for textbox/combobox/searchbox)
+      if (['textbox', 'combobox', 'searchbox'].includes(role)) {
+        const locator = frame.getByPlaceholder(name.slice(0, 40), { exact: false }).nth(idx);
+        const count = await locator.count().catch(() => 0);
+        if (count > 0) return locator;
+      }
+
+      // Strategy 3: getByText
+      {
+        const shortText = name.slice(0, 30);
+        const locator = frame.getByText(shortText, { exact: false }).nth(idx);
+        const count = await locator.count().catch(() => 0);
+        if (count > 0) return locator;
+      }
+
+      // Strategy 4: getByLabel
+      {
+        const locator = frame.getByLabel(name.slice(0, 40), { exact: false }).nth(idx);
+        const count = await locator.count().catch(() => 0);
+        if (count > 0) return locator;
+      }
+    } catch {}
+  }
+
   return null;
 }
 
@@ -264,12 +337,62 @@ function buildPath(x0, y0, x1, y1) {
 export async function moveTo(page, x1, y1, mouseState) {
   const x0 = mouseState.x ?? (page.viewportSize()?.width ?? 1366) / 2;
   const y0 = mouseState.y ?? (page.viewportSize()?.height ?? 768) / 2;
-  const path = buildPath(x0, y0, x1, y1);
   const dist = Math.hypot(x1 - x0, y1 - y0);
 
-  // Human mouse speed: 40–90 px/s (Gaussian mean 65) — slow and deliberate
-  const baseSpeed = clamp(gaussian(65, 12), 40, 90);
-  const totalMs = (dist / baseSpeed) * 1000;
+  // 7% chance: crazy OCD-style mouse jitter before (and sometimes after) moving to target
+  const doOcdJitter = dist > 50 && Math.random() < 0.07;
+  const ocdJitterAfterToo = doOcdJitter && Math.random() < 0.3; // 30% chance of doing it again after reaching target
+
+  if (doOcdJitter) {
+    const jitterDegree = Math.random() * 360 * Math.PI / 180; // random angle
+    const jitterCount = 4 + Math.floor(Math.random() * 8);    // 4-11 rapid movements
+    const jitterRadius = 30 + Math.random() * 120;             // how far the jitter goes
+    let jx = x0, jy = y0;
+
+    for (let j = 0; j < jitterCount; j++) {
+      // Alternate direction with random variation
+      const angle = jitterDegree + (j % 2 === 0 ? 1 : -1) * (0.3 + Math.random() * 0.7);
+      const jDist = jitterRadius * (0.3 + Math.random() * 0.7);
+      jx = clamp(x0 + Math.cos(angle) * jDist * (Math.random() - 0.3), 10, 1400);
+      jy = clamp(y0 + Math.sin(angle) * jDist * (Math.random() - 0.3), 10, 880);
+      await page.mouse.move(jx, jy);
+      await sleep(8 + Math.random() * 25); // very fast movements
+    }
+    // Brief pause after the jitter (realizing we need to focus)
+    await sleep(100 + Math.random() * 300);
+  }
+
+  // 5% chance: imperfect circle/loop before reaching target
+  if (dist > 80 && Math.random() < 0.05) {
+    const loopRadius = 40 + Math.random() * 80;
+    const loopSteps = 12 + Math.floor(Math.random() * 12);
+    const loopCenterX = (x0 + x1) / 2 + (Math.random() - 0.5) * 60;
+    const loopCenterY = (y0 + y1) / 2 + (Math.random() - 0.5) * 60;
+
+    for (let i = 0; i < loopSteps; i++) {
+      const angle = (i / loopSteps) * Math.PI * 2;
+      // Imperfect circle — vary radius per step
+      const r = loopRadius * (0.7 + Math.random() * 0.6);
+      const lx = loopCenterX + Math.cos(angle) * r;
+      const ly = loopCenterY + Math.sin(angle) * r;
+      await page.mouse.move(clamp(lx, 5, 1420), clamp(ly, 5, 890));
+      await sleep(15 + Math.random() * 30);
+    }
+    await sleep(50 + Math.random() * 200);
+  }
+
+  // Build the main Bézier path
+  const path = buildPath(x0, y0, x1, y1);
+
+  // Fitts' Law: T = a + b * log2(2D/W)
+  // Larger distance or smaller target → slower movement
+  // Research: human mouse speeds range 30-120 px/s depending on task precision
+  const targetWidth = 20 + Math.random() * 30; // random estimated target width (20-50px)
+  const fittsA = 150 + Math.random() * 150; // random intercept (150-300ms)
+  const fittsB = 120 + Math.random() * 80;  // random slope (120-200ms per bit)
+  const fittsTime = fittsA + fittsB * Math.log2(Math.max(1, 2 * dist / targetWidth));
+  const speedVariation = 0.6 + Math.random() * 0.8; // 60%-140% speed variation per move
+  const totalMs = fittsTime * speedVariation;
   const stepDelay = totalMs / path.length;
 
   // 25% chance: random mid-path freeze (user glanced elsewhere)
@@ -277,24 +400,65 @@ export async function moveTo(page, x1, y1, mouseState) {
     ? Math.floor(path.length * (0.3 + Math.random() * 0.4))
     : -1;
 
+  // 11% chance: speed change mid-path (started fast then slows, or started slow then speeds up)
+  const speedChangeIdx = Math.random() < 0.11
+    ? Math.floor(path.length * (0.3 + Math.random() * 0.4))
+    : -1;
+  // Random speed factor: 0.3-0.6 = decelerate (fast→slow), 1.4-2.0 = accelerate (slow→fast)
+  const speedChangeFactor = Math.random() < 0.5
+    ? 0.3 + Math.random() * 0.3   // decelerate
+    : 1.4 + Math.random() * 0.6;  // accelerate
+
   for (let i = 0; i < path.length; i++) {
     const [x, y] = path[i];
     await page.mouse.move(x, y);
+
+    let delay = stepDelay;
     if (i === midPauseIdx) {
-      await sleep(200 + Math.random() * 800);   // mid-path distraction pause
-    } else {
-      await sleep(Math.max(1, stepDelay + gaussian(0, stepDelay * 0.3)));
+      await sleep(200 + Math.random() * 800);
+      continue;
     }
+    if (speedChangeIdx > 0 && i >= speedChangeIdx) {
+      delay *= speedChangeFactor;
+    }
+    await sleep(Math.max(1, delay + gaussian(0, delay * 0.3)));
   }
 
-  // Micro-jitter at destination: hand tremor (3–6 tiny sub-pixel wiggles)
-  if (dist > 15) {
-    const jiggles = 3 + Math.floor(Math.random() * 4);
+  // Micro-jitter at destination: hand tremor (40% chance, 2–7 tiny wiggles, variable intensity)
+  if (dist > 15 && Math.random() < 0.4) {
+    const jiggles = 2 + Math.floor(Math.random() * 6);
+    const jiggleIntensity = 2 + Math.random() * 6;
     for (let j = 0; j < jiggles; j++) {
-      await page.mouse.move(x1 + (Math.random() - 0.5) * 5, y1 + (Math.random() - 0.5) * 5);
-      await sleep(18 + Math.random() * 45);
+      await page.mouse.move(
+        x1 + (Math.random() - 0.5) * jiggleIntensity,
+        y1 + (Math.random() - 0.5) * jiggleIntensity
+      );
+      await sleep(15 + Math.random() * 50);
     }
     await page.mouse.move(x1, y1);
+  }
+
+  // OCD jitter AFTER reaching target (30% chance when OCD jitter was triggered before)
+  if (ocdJitterAfterToo) {
+    await sleep(80 + Math.random() * 200);
+    const jitterDegree2 = Math.random() * 360 * Math.PI / 180;
+    const jitterCount2 = 3 + Math.floor(Math.random() * 6);
+    const jitterRadius2 = 20 + Math.random() * 80;
+
+    for (let j = 0; j < jitterCount2; j++) {
+      const angle = jitterDegree2 + (j % 2 === 0 ? 1 : -1) * (0.3 + Math.random() * 0.7);
+      const jDist = jitterRadius2 * (0.3 + Math.random() * 0.7);
+      const jx = clamp(x1 + Math.cos(angle) * jDist * (Math.random() - 0.3), 10, 1400);
+      const jy = clamp(y1 + Math.sin(angle) * jDist * (Math.random() - 0.3), 10, 880);
+      await page.mouse.move(jx, jy);
+      await sleep(8 + Math.random() * 20);
+    }
+    await sleep(50 + Math.random() * 150);
+
+    // Return to target — but not exactly center, slightly off
+    const finalOffsetX = (Math.random() - 0.5) * 10;
+    const finalOffsetY = (Math.random() - 0.5) * 10;
+    await page.mouse.move(x1 + finalOffsetX, y1 + finalOffsetY);
   }
 
   mouseState.x = x1;
@@ -393,8 +557,10 @@ function keyDelay(prev, curr) {
   return Math.max(35, gaussian(mean, std));
 }
 
-// Type with error rate 4–9% (default 6.5%), realization delay 600–1500ms
-export async function humanType(page, text, { errorRate = 0.065 } = {}) {
+// Type with random error rate per session (4.5%–9.5%), realization delay 600–1500ms
+export async function humanType(page, text, { errorRate } = {}) {
+  // Pick a fresh random error rate for this typing session
+  if (errorRate === undefined) errorRate = 0.045 + Math.random() * 0.05; // 4.5%–9.5%
   let wordCount = 0;
   let burstTarget = 3 + Math.floor(Math.random() * 3);
   let prevChar = '';
@@ -435,30 +601,15 @@ export async function humanType(page, text, { errorRate = 0.065 } = {}) {
 
 export async function humanScroll(page, totalPixels, direction = 'down') {
   const sign = direction === 'down' ? 1 : -1;
-  let remaining = Math.abs(totalPixels);
+  const total = Math.abs(totalPixels);
 
-  while (remaining > 0) {
-    const burstSize = Math.min(remaining, 80 + Math.random() * 200);
-    remaining -= burstSize;
-    const steps = 6 + Math.floor(Math.random() * 5);
-    const totalWeight = (steps * (steps + 1)) / 2;
-    for (let s = steps; s > 0; s--) {
-      await page.mouse.wheel(0, sign * burstSize * (s / totalWeight));
-      await sleep(14 + Math.random() * 12);
-    }
+  // Clean, smooth scroll — 5-8 sub-steps, decelerating
+  const steps = 5 + Math.floor(Math.random() * 4);
+  const totalWeight = (steps * (steps + 1)) / 2;
 
-    // 28% chance: counter-scroll twitch — overscrolled, correcting
-    if (Math.random() < 0.28) {
-      const counterPx = 25 + Math.random() * 95;
-      const counterSteps = 3 + Math.floor(Math.random() * 4);
-      for (let s = 0; s < counterSteps; s++) {
-        await page.mouse.wheel(0, -sign * counterPx / counterSteps);
-        await sleep(16 + Math.random() * 22);
-      }
-      await sleep(180 + Math.random() * 420);
-    }
-
-    if (remaining > 0) await sleep(800 + Math.random() * 3500);
+  for (let s = steps; s > 0; s--) {
+    await page.mouse.wheel(0, sign * total * (s / totalWeight));
+    await sleep(10 + Math.random() * 15);
   }
 }
 

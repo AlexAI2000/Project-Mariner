@@ -66,6 +66,7 @@ function buildParams() {
   if (opts.kind) params.kind = opts.kind;
   if (opts.text !== undefined) params.text = opts.text;
   if (opts.url) params.url = opts.url;
+  if (opts['after-nav']) params.afterNavigation = true;
   if (opts.pixels) params.pixels = parseInt(opts.pixels, 10);
   if (opts.direction) params.direction = opts.direction;
   if (opts.ms) params.ms = parseInt(opts.ms, 10);

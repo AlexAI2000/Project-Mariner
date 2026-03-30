@@ -68,8 +68,12 @@ const tasks = plan.tasks.map((t, i) => ({
   id: t.id || `task-${i + 1}`,
   label: t.label || `Task ${i + 1}`,
   type: t.type || 'browser',
-  // Browser task fields
+  // Browser task fields (legacy step-based)
   ...(t.steps ? { steps: t.steps } : {}),
+  // browser-use task fields (natural language prompt)
+  ...(t.prompt ? { prompt: t.prompt } : {}),
+  ...(t.maxSteps ? { maxSteps: t.maxSteps } : {}),
+  ...(t.timeout ? { timeout: t.timeout } : {}),
   // Bash task fields
   ...(t.command ? { command: t.command, timeoutSec: t.timeoutSec } : {}),
   // Client context (will be injected by executor if clientId is at plan level)

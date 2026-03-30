@@ -14,6 +14,7 @@
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { spawn } from 'child_process';
+import { runBrowserUseTask } from '/data/browser-use/bridge.js';
 
 const SESSIONS_DIR = '/data/sessions';
 const DISPATCH = '/data/director/dispatch.js';
@@ -343,16 +344,19 @@ async function runSession() {
       lastBrowserTaskIdx = i;
     }
 
-    // Append finalClose to the last browser task so the session ends gracefully
+    // Append finalClose to the last legacy browser task so the session ends gracefully.
+    // Skip browser_use tasks — they don't use steps, and the MLX profile stays open for reuse.
     if (lastBrowserTaskIdx >= 0) {
       const lt = session.tasks[lastBrowserTaskIdx];
-      const steps = Array.isArray(lt.steps) ? lt.steps : [];
-      // Only add if not already there (recovery guard)
-      if (!steps.some(s => s.action === 'finalClose')) {
-        session.tasks[lastBrowserTaskIdx] = {
-          ...lt,
-          steps: [...steps, { action: 'finalClose' }],
-        };
+      if (lt.type !== 'browser_use') {
+        const steps = Array.isArray(lt.steps) ? lt.steps : [];
+        // Only add if not already there (recovery guard)
+        if (!steps.some(s => s.action === 'finalClose')) {
+          session.tasks[lastBrowserTaskIdx] = {
+            ...lt,
+            steps: [...steps, { action: 'finalClose' }],
+          };
+        }
       }
     }
 
@@ -398,7 +402,99 @@ async function runSession() {
       continue;
     }
 
-    // ── Browser task ───────────────────────────────────────────────────────
+    // ── browser-use task (AI agent with natural language prompt) ──────────
+    if (task.type === 'browser_use') {
+      if (!task.prompt) {
+        process.stderr.write(`[executor] browser_use task ${task.id} has no prompt, marking skipped.\n`);
+        session.tasks[i] = { ...task, status: 'skipped', result: { summary: 'No prompt defined' } };
+        heartbeat(session);
+        continue;
+      }
+
+      // Need a CDP URL — either from task directly, or start the MLX profile
+      let cdpUrl = task.cdpUrl || null;
+      if (!cdpUrl && task.mlProfileId) {
+        process.stderr.write(`[executor] Starting MLX profile ${task.mlProfileId} for browser_use task...\n`);
+        try {
+          const startProfileResult = await new Promise((resolve, reject) => {
+            const proc = spawn(process.execPath, [
+              '-e',
+              `import('file:///data/multilogin/multilogin.js').then(m => m.startProfile('${task.mlProfileId}', '${task.folderId || ''}')).then(url => { process.stdout.write(url); process.exit(0); }).catch(e => { process.stderr.write(e.message); process.exit(1); })`,
+            ], { stdio: ['ignore', 'pipe', 'pipe'] });
+
+            let out = '';
+            let errOut = '';
+            proc.stdout.on('data', d => { out += d; });
+            proc.stderr.on('data', d => { errOut += d; process.stderr.write(d); });
+            const timer = setTimeout(() => { proc.kill('SIGTERM'); reject(new Error('startProfile timed out (120s)')); }, 120000);
+            proc.on('close', code => {
+              clearTimeout(timer);
+              code === 0 ? resolve(out.trim()) : reject(new Error(errOut.trim() || `startProfile exit ${code}`));
+            });
+            proc.on('error', err => { clearTimeout(timer); reject(err); });
+          });
+          cdpUrl = startProfileResult;
+        } catch (e) {
+          process.stderr.write(`[executor] Failed to start MLX profile for browser_use: ${e.message}\n`);
+          session = readSession();
+          session.tasks[i] = {
+            ...session.tasks[i],
+            status: 'failed',
+            completedAt: Date.now(),
+            result: { success: false, summary: '', error: `MLX profile start failed: ${e.message}` },
+          };
+          heartbeat(session);
+          continue;
+        }
+      }
+
+      if (!cdpUrl) {
+        process.stderr.write(`[executor] browser_use task ${task.id} has no cdpUrl and no mlProfileId, marking failed.\n`);
+        session.tasks[i] = { ...task, status: 'failed', result: { success: false, error: 'No CDP URL or MLX profile available' } };
+        heartbeat(session);
+        continue;
+      }
+
+      process.stderr.write(`[executor] Running browser_use task ${task.id}: ${task.prompt.slice(0, 100)}...\n`);
+      session.tasks[i] = { ...task, status: 'running', startedAt: Date.now() };
+      heartbeat(session);
+
+      try {
+        const buResult = await runBrowserUseTask(task.prompt, cdpUrl, {
+          maxSteps: task.maxSteps || 100,
+          timeout: task.timeout || 600,
+        });
+
+        session = readSession();
+        session.tasks[i] = {
+          ...session.tasks[i],
+          status: buResult.success ? 'done' : 'failed',
+          completedAt: Date.now(),
+          result: {
+            success: buResult.success,
+            summary: buResult.result || (buResult.success ? 'Completed' : 'Failed'),
+            error: buResult.success ? undefined : (buResult.errors?.[0] || 'Unknown error'),
+            steps: buResult.steps,
+            duration_ms: buResult.duration_ms,
+          },
+        };
+      } catch (e) {
+        process.stderr.write(`[executor] browser_use task ${task.id} threw: ${e.message}\n`);
+        session = readSession();
+        session.tasks[i] = {
+          ...session.tasks[i],
+          status: 'failed',
+          completedAt: Date.now(),
+          result: { success: false, summary: '', error: e.message },
+        };
+      }
+
+      heartbeat(session);
+      process.stderr.write(`[executor] browser_use task ${task.id} ${session.tasks[i].status}.\n`);
+      continue;
+    }
+
+    // ── Legacy browser task (step-based dispatch) ───────────────────────────
     if (!task.steps || task.steps.length === 0) {
       process.stderr.write(`[executor] Task ${task.id} has no steps, marking skipped.\n`);
       session.tasks[i] = { ...task, status: 'skipped', result: { summary: 'No steps defined' } };

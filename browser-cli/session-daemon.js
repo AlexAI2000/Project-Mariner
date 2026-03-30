@@ -22,11 +22,13 @@ const { chromium } = require('/data/human-browser/node_modules/playwright-core/i
 import {
   snapshot,
   locatorForRef,
+  locatorForRefAcrossFrames,
   humanClick,
   humanFill,
   humanType,
   humanNavigate,
   humanScroll,
+  moveTo,
   openBackgroundTab,
   breatheOnBackgroundTab,
   MAX_TABS_PER_SESSION,
@@ -304,13 +306,11 @@ async function closeTab(tabId) {
 
 // ── Command handlers ───────────────────────────────────────────────────────────
 
-async function cmd_snapshot({ tabId } = {}) {
+async function cmd_snapshot({ tabId, afterNavigation } = {}) {
   const tid = tabId || currentTabId;
   const page = getPage(tid);
-  // Hard timeout: 1 hour — the snapshot function handles its own timing internally
-  // (11-15s settle + stability check up to 60s). This outer guard is just a safety net.
   const result = await Promise.race([
-    snapshot(page),
+    snapshot(page, { afterNavigation: !!afterNavigation }),
     new Promise((_, rej) => setTimeout(() => rej(new Error('Snapshot daemon hard timeout: 3600s')), 3600000)),
   ]);
   snapshotCache.set(tid, { refs: result.refs, url: result.url });
@@ -348,7 +348,15 @@ async function cmd_act({ ref, kind, text, key, tabId } = {}) {
   const refObj = cache.refs[ref];
   if (!refObj) throw new Error(`Ref ${ref} not found in last snapshot. Re-snapshot the page.`);
 
-  const locator = locatorForRef(page, refObj);
+  // Try main page first, then search all frames (LinkedIn renders content in sub-frames)
+  let locator = locatorForRef(page, refObj);
+  try {
+    const count = await locator?.count();
+    if (!count) throw new Error('not in main frame');
+  } catch {
+    // Element not in main frame — search all frames
+    locator = await locatorForRefAcrossFrames(page, refObj);
+  }
   if (!locator) throw new Error(`Cannot build locator for ref ${ref}`);
 
   const ms = mouseState(tid);
@@ -487,6 +495,34 @@ async function cmd_scroll({ pixels, direction, tabId } = {}) {
   return { ok: true };
 }
 
+async function cmd_hover({ ref, tabId } = {}) {
+  const tid = tabId || currentTabId;
+  const page = getPage(tid);
+  const cache = snapshotCache.get(tid);
+  if (!ref) throw new Error('ref is required for hover');
+  if (!cache) throw new Error('No snapshot cached. Run snapshot first.');
+  const refObj = cache.refs[ref];
+  if (!refObj) throw new Error(`Ref ${ref} not found in last snapshot.`);
+
+  let locator = locatorForRef(page, refObj);
+  try {
+    const count = await locator?.count();
+    if (!count) throw new Error('not in main frame');
+  } catch {
+    locator = await locatorForRefAcrossFrames(page, refObj);
+  }
+  if (!locator) throw new Error(`Cannot build locator for ref ${ref}`);
+
+  const ms = mouseState(tid);
+  const box = await locator.boundingBox();
+  if (!box) throw new Error('Element has no bounding box');
+  const cx = box.x + box.width / 2 + (Math.random() - 0.5) * 10;
+  const cy = box.y + box.height / 2 + (Math.random() - 0.5) * 6;
+  await moveTo(page, cx, cy, ms);
+  log(`Hovering on "${refObj.name}" [${ref}] at (${Math.round(cx)}, ${Math.round(cy)})`);
+  return { ok: true, ref, x: Math.round(cx), y: Math.round(cy) };
+}
+
 async function cmd_wait({ ms } = {}) {
   const duration = Math.min(ms || 2000, 600000); // up to 10 min — no arbitrary short cap
   await new Promise(r => setTimeout(r, duration));
@@ -561,6 +597,49 @@ async function cmd_get_status() {
     completedTasks,
     pendingTasks,
   };
+}
+
+async function cmd_get_compose_url({ tabId } = {}) {
+  // Extract the messaging compose URL from the current profile page
+  // Searches all frames for an <a> with href containing "messaging/compose"
+  const tid = tabId || currentTabId;
+  const page = getPage(tid);
+  for (const frame of page.frames()) {
+    try {
+      const href = await frame.evaluate(() => {
+        const el = Array.from(document.querySelectorAll('a')).find(
+          a => a.textContent?.trim() === 'Message' && a.href?.includes('messaging/compose')
+        );
+        return el ? el.href : null;
+      });
+      if (href) {
+        log(`Found compose URL: ${href.slice(0, 80)}`);
+        return { ok: true, composeUrl: href };
+      }
+    } catch {}
+  }
+  return { ok: false, error: 'No compose URL found on this page' };
+}
+
+async function cmd_click_send({ tabId } = {}) {
+  // Click LinkedIn's Send button which has no accessible label
+  // Uses CSS class .msg-form__send-btn across all frames
+  const tid = tabId || currentTabId;
+  const page = getPage(tid);
+  for (const frame of page.frames()) {
+    try {
+      const clicked = await frame.evaluate(() => {
+        const btn = document.querySelector('.msg-form__send-btn');
+        if (btn && !btn.disabled) { btn.click(); return true; }
+        return false;
+      });
+      if (clicked) {
+        log('Clicked Send button via CSS selector');
+        return { ok: true };
+      }
+    } catch {}
+  }
+  throw new Error('Send button (.msg-form__send-btn) not found or disabled');
 }
 
 async function cmd_press_key({ key, tabId } = {}) {
@@ -703,6 +782,7 @@ const COMMANDS = {
   switch_tab: cmd_switch_tab,
   close_tab: cmd_close_tab,
   scroll: cmd_scroll,
+  hover: cmd_hover,
   wait: cmd_wait,
   screenshot: cmd_screenshot,
   get_text: cmd_get_text,
@@ -710,6 +790,8 @@ const COMMANDS = {
   checkpoint: cmd_checkpoint,
   get_status: cmd_get_status,
   press_key: cmd_press_key,
+  click_send: cmd_click_send,
+  get_compose_url: cmd_get_compose_url,
   stop: cmd_stop,
   detect_captcha: cmd_detect_captcha,
   inject_captcha_token: cmd_inject_captcha_token,
