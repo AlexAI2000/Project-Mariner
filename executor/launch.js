@@ -74,6 +74,8 @@ const tasks = plan.tasks.map((t, i) => ({
   ...(t.prompt ? { prompt: t.prompt } : {}),
   ...(t.maxSteps ? { maxSteps: t.maxSteps } : {}),
   ...(t.timeout ? { timeout: t.timeout } : {}),
+  ...(t.systemPrompt ? { systemPrompt: t.systemPrompt } : {}),
+  ...(t.injectAsUserPrompt ? { injectAsUserPrompt: t.injectAsUserPrompt } : {}),
   // Bash task fields
   ...(t.command ? { command: t.command, timeoutSec: t.timeoutSec } : {}),
   // Client context (will be injected by executor if clientId is at plan level)
@@ -93,6 +95,9 @@ const session = {
   clientId: plan.clientId || null,
   clientName: plan.clientName || null,
   webhookUrl: plan.webhookUrl || null,
+  callbackUrl: plan.callbackUrl || null,
+  callbackMetadata: plan.callbackMetadata || null,
+  stepCallbackUrl: plan.stepCallbackUrl || null,
   clientContext: null, // filled by executor after resolveClient()
 
   tasks,

@@ -7,11 +7,13 @@
 // Concurrency model: a single "screenshotter" MLX profile stays running permanently.
 // Each request opens its own tab, does its work, then closes that tab.
 // Multiple concurrent jobs each get an isolated tab with no interference.
+// When account_id is provided, uses that account's MLX profile instead (for
+// logged-in screenshots, e.g. LinkedIn profiles).
 //
-// Usage: node /data/executor/screenshot.js <url> <callbackUrl> <executionId>
+// Usage: node /data/executor/screenshot.js <url> <callbackUrl> <executionId> [accountId]
 
 import { readFileSync, writeFileSync, unlinkSync } from 'fs';
-import { spawn } from 'child_process';
+import { execSync, spawn } from 'child_process';
 import { HumanBrowser } from '/data/human-browser/index.js';
 import { clickAt as humanClickAt } from '/data/human-browser/src/mouse.js';
 import {
@@ -20,10 +22,10 @@ import {
   findProfileByAccountId,
 } from '/data/multilogin/multilogin.js';
 
-const [, , targetUrl, callbackUrl, executionId] = process.argv;
+const [, , targetUrl, callbackUrl, executionId, accountId] = process.argv;
 
 if (!targetUrl || !callbackUrl || !executionId) {
-  process.stderr.write('[screenshot] Usage: node screenshot.js <url> <callbackUrl> <executionId>\n');
+  process.stderr.write('[screenshot] Usage: node screenshot.js <url> <callbackUrl> <executionId> [accountId]\n');
   process.exit(1);
 }
 
@@ -373,19 +375,33 @@ async function run() {
   let page = null;
 
   try {
-    // Step 1: Resolve screenshotter MLX profile (create if not exists)
-    process.stderr.write(`[screenshot] Resolving screenshotter profile...\n`);
-    const existing = await findProfileByAccountId(SCREENSHOTTER_ID);
-    if (existing) {
-      profileId = existing.id || existing.profile_id;
-      folderId = existing.folder_id || process.env.MULTILOGIN_FOLDER_ID;
-      process.stderr.write(`[screenshot] Found existing profile: ${profileId}\n`);
+    // Step 1: Resolve MLX profile — use account's own profile if account_id provided,
+    // otherwise fall back to the generic screenshotter profile.
+    if (accountId) {
+      process.stderr.write(`[screenshot] Resolving profile for account: ${accountId}\n`);
+      const clientJson = execSync(
+        `node /data/clients/client-manager.js resolve ${accountId}`,
+        { encoding: 'utf8', timeout: 30000 }
+      ).trim();
+      const client = JSON.parse(clientJson);
+      profileId = client.mlProfileId;
+      folderId = client.folderId || process.env.MULTILOGIN_FOLDER_ID;
+      if (!profileId) throw new Error(`No MLX profile found for account ${accountId}`);
+      process.stderr.write(`[screenshot] Using account profile: ${profileId}\n`);
     } else {
-      process.stderr.write(`[screenshot] No screenshotter profile found — creating one...\n`);
-      const created = await createProfile(SCREENSHOTTER_ID, 'web', 'Screenshotter', null);
-      profileId = created.profileId;
-      folderId = created.folderId;
-      process.stderr.write(`[screenshot] Created profile: ${profileId}\n`);
+      process.stderr.write(`[screenshot] Resolving screenshotter profile...\n`);
+      const existing = await findProfileByAccountId(SCREENSHOTTER_ID);
+      if (existing) {
+        profileId = existing.id || existing.profile_id;
+        folderId = existing.folder_id || process.env.MULTILOGIN_FOLDER_ID;
+        process.stderr.write(`[screenshot] Found existing profile: ${profileId}\n`);
+      } else {
+        process.stderr.write(`[screenshot] No screenshotter profile found — creating one...\n`);
+        const created = await createProfile(SCREENSHOTTER_ID, 'web', 'Screenshotter', null);
+        profileId = created.profileId;
+        folderId = created.folderId;
+        process.stderr.write(`[screenshot] Created profile: ${profileId}\n`);
+      }
     }
 
     // Step 2: Ensure the profile's browser is running, then connect.

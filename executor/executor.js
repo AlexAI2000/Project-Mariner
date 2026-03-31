@@ -461,8 +461,13 @@ async function runSession() {
 
       try {
         const buResult = await runBrowserUseTask(task.prompt, cdpUrl, {
-          maxSteps: task.maxSteps || 100,
-          timeout: task.timeout || 600,
+          maxSteps: task.maxSteps || 30,
+          timeout: task.timeout || 900,
+          systemPromptText: task.systemPrompt || null,
+          stepCallbackUrl: session.stepCallbackUrl || null,
+          executionId: session.callbackMetadata?.execution_id || null,
+          sessionId: session.id || null,
+          injectAsUserPrompt: !!task.injectAsUserPrompt,
         });
 
         session = readSession();

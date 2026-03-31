@@ -53,6 +53,7 @@ import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'fs';
 import { join } from 'path';
 import { spawnSync, spawn } from 'child_process';
 import { randomUUID } from 'crypto';
+import { runBrowserUseTask } from '/data/browser-use/bridge.js';
 
 const PORT = parseInt(process.env.TASK_API_PORT || '18790');
 const AUTH_TOKEN = process.env.TASK_API_TOKEN || '9O0IWy8zIq5tGAIEC5YrF9MXxZlhiEbq';
@@ -431,8 +432,10 @@ async function handleMarinerWorkingSession(req, res) {
         type: 'browser_use',
         prompt: t.prompt || t.details?.prompt || `Execute: ${t.task_type}`,
         label: (t.prompt || t.task_type || `Task ${idx + 1}`).slice(0, 80),
-        maxSteps: t.max_steps || 100,
-        timeout: t.timeout || 600,
+        maxSteps: t.max_steps || 30,
+        timeout: t.timeout || 900,
+        systemPrompt: t.system_prompt || null,
+        injectAsUserPrompt: !!t.inject_as_user_prompt,
       })),
     ];
   } else {
@@ -463,6 +466,7 @@ async function handleMarinerWorkingSession(req, res) {
     clientName,
     callbackUrl,
     callbackMetadata,
+    stepCallbackUrl: body.step_callback_url || null,
     tasks: sessionTasks,
   };
 
@@ -670,10 +674,12 @@ function isAllowedScreenshotCallbackUrl(urlStr) {
 }
 
 // POST /api/v1/screenshot
-// Body: { url, callback_url, execution_id, auth_token? }
+// Body: { url, callback_url, execution_id, account_id?, auth_token? }
 // Responds immediately with 200, then spawns screenshot.js in the background.
 // screenshot.js navigates to url, dismisses all popups, takes a 1440×900 PNG,
 // and POSTs the result to callback_url with { execution_id, status, screenshot, url, timestamp }.
+// When account_id is provided, uses that account's MLX browser profile (logged in)
+// instead of the generic screenshotter profile.
 async function handleScreenshot(req, res) {
   let body;
   try { body = await readBody(req); }
@@ -683,7 +689,7 @@ async function handleScreenshot(req, res) {
     return err(res, 401, 'Unauthorized — provide Authorization: Bearer <token> or auth_token in body');
   }
 
-  const { url: targetUrl, callback_url: callbackUrl, execution_id: executionId } = body;
+  const { url: targetUrl, callback_url: callbackUrl, execution_id: executionId, account_id: accountId } = body;
 
   if (!targetUrl) return err(res, 400, 'url is required');
   if (!callbackUrl) return err(res, 400, 'callback_url is required');
@@ -710,6 +716,7 @@ async function handleScreenshot(req, res) {
     targetUrl,
     callbackUrl,
     String(executionId),
+    accountId || '',
   ], {
     detached: true,
     stdio: 'ignore',
@@ -810,6 +817,242 @@ async function handleLemlistCollectLeads(req, res) {
   }).unref();
 }
 
+// ── Browser-Use endpoint ─────────────────────────────────────────────────────
+//
+// POST /api/v1/browser-use
+//   Starts a browser-use AI agent with custom tool "Manage Task List".
+//   The agent fetches tasks on-the-fly from the provided tool_endpoint.
+//   Step-by-step logs are POSTed to log_endpoint in real time.
+//
+// ── Active browser-use sessions (for kill endpoint) ─────────────────────────
+const activeBrowserUseSessions = new Map(); // sessionId → { pid, startedAt }
+
+// Hardcoded Supabase endpoints for browser-use agent
+const BU_TASK_ENDPOINT = 'https://wlowwprkjdhvfecsxsvp.supabase.co/functions/v1/browser-agent-task';
+const BU_LOG_ENDPOINT  = 'https://wlowwprkjdhvfecsxsvp.supabase.co/functions/v1/browser-agent-log';
+const BU_MAX_STEPS     = 1000000; // effectively unlimited — timeout is the real constraint
+const BU_TIMEOUT       = 36000; // 10 hours max
+
+async function handleBrowserUse(req, res) {
+  let body;
+  try { body = await readBody(req); }
+  catch (e) { return err(res, 400, e.message); }
+
+  if (!checkMarinerAuth(req, body)) {
+    return err(res, 401, 'Unauthorized — provide auth_token in body or Authorization: Bearer header');
+  }
+
+  const {
+    session_id: sessionId,
+    user_prompt: userPrompt,
+    system_prompt: systemPrompt,
+    agent_type: agentType = 'default',
+    lead_import_page_turns: pageTurns = null,
+    list: listName = null,
+  } = body;
+  const authToken = body.auth_token || (req.headers['authorization'] || '').replace('Bearer ', '').trim();
+
+  if (!sessionId) return err(res, 400, 'session_id is required');
+  if (!userPrompt) return err(res, 400, 'user_prompt is required');
+
+  // Respond immediately — agent runs in background
+  json(res, 200, {
+    status: 'started',
+    session_id: sessionId,
+    message: 'Browser-use agent started.',
+  });
+
+  // Spawn agent in background
+  (async () => {
+    try {
+      // ── Start MLX Lead_Collector profile with full error recovery ──────────
+      const { findProfileByName, startProfile } = await import('/data/multilogin/multilogin.js');
+      const profile = await findProfileByName('Lead_Collector');
+      if (!profile) throw new Error('MLX profile "Lead_Collector" not found');
+      const profileId = profile.id || profile.profile_id;
+      const folderId = profile.folder_id || process.env.MULTILOGIN_FOLDER_ID;
+
+      let cdpUrl;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          process.stderr.write(`[browser-use-api] Session ${sessionId}: startProfile attempt ${attempt}/3\n`);
+          cdpUrl = await startProfile(profileId, folderId);
+          break; // success
+        } catch (startErr) {
+          process.stderr.write(`[browser-use-api] startProfile attempt ${attempt} failed: ${startErr.message.slice(0, 200)}\n`);
+
+          // Attempt 1 fallback: try cached CDP URL
+          if (attempt === 1) {
+            try {
+              const openProfiles = JSON.parse(readFileSync('/data/multilogin/open-profiles.json', 'utf8'));
+              const cached = openProfiles[profileId];
+              if (cached?.cdpUrl) {
+                process.stderr.write(`[browser-use-api] Using cached CDP: ${cached.cdpUrl}\n`);
+                cdpUrl = cached.cdpUrl;
+                break;
+              }
+            } catch {}
+          }
+
+          // Attempt 2+3: trigger MLX recovery via recover-mlx.sh and wait
+          if (attempt >= 2) {
+            process.stderr.write(`[browser-use-api] Triggering MLX auto-recovery (attempt ${attempt})...\n`);
+            try {
+              // Run the recovery script which checks launcher and writes signal for host watchdog
+              const recovery = spawnSync('bash', ['/data/recover-mlx.sh'], {
+                timeout: 75000, // 75s max (script waits up to 60s internally)
+                stdio: ['ignore', 'pipe', 'pipe'],
+              });
+              const out = (recovery.stdout?.toString() || '') + (recovery.stderr?.toString() || '');
+              process.stderr.write(`[browser-use-api] Recovery output: ${out.slice(-300)}\n`);
+
+              if (recovery.status === 0) {
+                process.stderr.write(`[browser-use-api] Recovery succeeded — retrying startProfile...\n`);
+              } else {
+                process.stderr.write(`[browser-use-api] Recovery script exited ${recovery.status}\n`);
+              }
+            } catch (recoveryErr) {
+              process.stderr.write(`[browser-use-api] Recovery error: ${recoveryErr.message}\n`);
+            }
+            await new Promise(r => setTimeout(r, 5000));
+
+            if (attempt === 3) {
+              // Final attempt after recovery
+              try {
+                cdpUrl = await startProfile(profileId, folderId);
+                break;
+              } catch (finalErr) {
+                throw new Error(`All recovery attempts failed. Last: ${finalErr.message.slice(0, 200)}`);
+              }
+            }
+          }
+        }
+      }
+
+      if (!cdpUrl) throw new Error('Failed to obtain CDP URL after all recovery attempts');
+
+      process.stderr.write(`[browser-use-api] Session ${sessionId}: CDP ${cdpUrl}\n`);
+      activeBrowserUseSessions.set(sessionId, {
+        startedAt: Date.now(), cdpUrl, authToken,
+        pageTurns: pageTurns ? parseInt(pageTurns) : null,
+        listName: listName || `import_${sessionId.slice(0, 8)}`,
+      });
+
+      const postLog = (event) => {
+        try {
+          const cbPath = `/tmp/bu-log-${sessionId}-${Date.now()}.json`;
+          writeFileSync(cbPath, JSON.stringify({ session_id: sessionId, ...event }));
+          const curlArgs = ['-s', '-X', 'POST',
+            '-H', 'Content-Type: application/json',
+            '-H', `Authorization: Bearer ${authToken}`,
+            '-d', `@${cbPath}`, '--max-time', '30', BU_LOG_ENDPOINT];
+          const proc = spawn('curl', curlArgs,
+            { stdio: ['ignore', 'ignore', 'ignore'], detached: true });
+          proc.unref();
+          setTimeout(() => { try { unlinkSync(cbPath); } catch {} }, 35000);
+        } catch {}
+      };
+
+      const result = await runBrowserUseTask(userPrompt, cdpUrl, {
+        maxSteps: BU_MAX_STEPS,
+        timeout: BU_TIMEOUT,
+        systemPromptText: systemPrompt || null,
+        stepCallbackUrl: BU_LOG_ENDPOINT,
+        sessionId,
+        toolEndpoint: BU_TASK_ENDPOINT,
+        toolSessionId: sessionId,
+        toolAuthToken: authToken,
+      });
+
+      const sessionConfig = activeBrowserUseSessions.get(sessionId);
+      activeBrowserUseSessions.delete(sessionId);
+      process.stderr.write(`[browser-use-api] Session ${sessionId}: ${result.success ? 'SUCCESS' : 'FAILED'} (${result.steps} steps, ${result.duration_ms}ms)\n`);
+
+      postLog({
+        event: 'session_complete',
+        success: result.success,
+        result: result.result || '',
+        total_steps: result.steps,
+        duration_ms: result.duration_ms,
+        errors: result.errors || [],
+        timestamp: new Date().toISOString(),
+      });
+
+      // Auto-trigger lead import if agent succeeded and pageTurns is configured
+      if (result.success && sessionConfig?.pageTurns) {
+        const importListName = sessionConfig.listName;
+        const leadCount = sessionConfig.pageTurns * 100; // each page = 100 leads
+        process.stderr.write(`[browser-use-api] Session ${sessionId}: Auto-starting lead import: "${importListName}", ${leadCount} leads (${sessionConfig.pageTurns} pages)\n`);
+
+        const importPayload = {
+          list_name: importListName,
+          lead_count: leadCount,
+          filters: [],  // filters already applied by browser-use agent
+          callback_url: BU_LOG_ENDPOINT,
+          callback_metadata: { execution_id: sessionId },
+        };
+        const importPath = `/tmp/lemlist-import-${sessionId}.json`;
+        writeFileSync(importPath, JSON.stringify(importPayload));
+
+        spawn(process.execPath, [
+          '/data/lemlist/lemlist-collect.js',
+          importPath,
+          BU_LOG_ENDPOINT,
+          sessionId,
+        ], { detached: true, stdio: 'ignore', env: process.env }).unref();
+      }
+
+    } catch (e) {
+      process.stderr.write(`[browser-use-api] Session ${sessionId} ERROR: ${e.message}\n`);
+      try {
+        const errBody = JSON.stringify({
+          session_id: sessionId,
+          event: 'session_complete',
+          success: false,
+          error: e.message,
+          timestamp: new Date().toISOString(),
+        });
+        const proc = spawn('curl', ['-s', '-X', 'POST',
+          '-H', 'Content-Type: application/json',
+          '-H', `Authorization: Bearer ${authToken}`,
+          '-d', errBody, '--max-time', '30', BU_LOG_ENDPOINT],
+          { stdio: ['ignore', 'ignore', 'ignore'], detached: true });
+        proc.unref();
+      } catch {}
+    }
+  })();
+}
+
+// ── Browser-Use kill endpoint ────────────────────────────────────────────────
+async function handleBrowserUseKill(req, res) {
+  let body;
+  try { body = await readBody(req); }
+  catch (e) { return err(res, 400, e.message); }
+
+  if (!checkMarinerAuth(req, body)) {
+    return err(res, 401, 'Unauthorized');
+  }
+
+  const sessionId = body.session_id;
+  if (!sessionId) return err(res, 400, 'session_id is required');
+
+  // Kill any Python runner processes for this session
+  try {
+    spawnSync('pkill', ['-f', `--session-id ${sessionId}`], { timeout: 5000 });
+  } catch {}
+
+  const wasActive = activeBrowserUseSessions.has(sessionId);
+  activeBrowserUseSessions.delete(sessionId);
+
+  process.stderr.write(`[browser-use-api] Kill request for session ${sessionId} (was active: ${wasActive})\n`);
+
+  json(res, 200, {
+    status: 'killed',
+    session_id: sessionId,
+    was_active: wasActive,
+  });
+}
+
 // ── Request router ────────────────────────────────────────────────────────────
 
 const server = createServer(async (req, res) => {
@@ -901,6 +1144,14 @@ const server = createServer(async (req, res) => {
 
     if (req.method === 'POST' && path === '/api/v1/lemlist/collect-leads') {
       return await handleLemlistCollectLeads(req, res);
+    }
+
+    if (req.method === 'POST' && path === '/api/v1/browser-use') {
+      return await handleBrowserUse(req, res);
+    }
+
+    if (req.method === 'POST' && path === '/api/v1/browser-use/kill') {
+      return await handleBrowserUseKill(req, res);
     }
 
     err(res, 404, `Route not found: ${req.method} ${path}`);
