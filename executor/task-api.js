@@ -866,11 +866,10 @@ async function handleBrowserUse(req, res) {
   (async () => {
     try {
       // ── Start MLX Lead_Collector profile with full error recovery ──────────
-      const { findProfileByName, startProfile } = await import('/data/multilogin/multilogin.js');
-      const profile = await findProfileByName('Lead_Collector');
-      if (!profile) throw new Error('MLX profile "Lead_Collector" not found');
-      const profileId = profile.id || profile.profile_id;
-      const folderId = profile.folder_id || process.env.MULTILOGIN_FOLDER_ID;
+      const { startProfile } = await import('/data/multilogin/multilogin.js');
+      // Lead_Collector_V2 profile — hardcoded ID for reliability
+      const profileId = 'dc19bdae-14f0-44aa-949e-903ce82ef2fa';
+      const folderId = process.env.MULTILOGIN_FOLDER_ID || '3d1d4dee-4839-49fc-a414-616b069c9fbf';
 
       let cdpUrl;
       for (let attempt = 1; attempt <= 3; attempt++) {
@@ -938,6 +937,48 @@ async function handleBrowserUse(req, res) {
         listName: listName || `import_${sessionId.slice(0, 8)}`,
       });
 
+      // Pre-launch: open fresh tab → navigate → wait 15s → click broom → activate agent
+      process.stderr.write(`[browser-use-api] Session ${sessionId}: Pre-launch — opening fresh Lemlist tab...\n`);
+      try {
+        const pwPkg = await import('/data/human-browser/node_modules/playwright-core/index.js');
+        const pw = pwPkg.default || pwPkg;
+        const preBrowser = await pw.chromium.connectOverCDP(cdpUrl, { timeout: 15000 });
+        const preCtx = preBrowser.contexts()[0] || await preBrowser.newContext();
+        const prePage = await preCtx.newPage();
+
+        // Navigate and wait for page to fully load
+        await prePage.goto('https://app.lemlist.com/teams/tea_NqA4w3k43yBJK2NKw/people-database', {
+          waitUntil: 'domcontentloaded', timeout: 60000,
+        }).catch(() => {});
+        await prePage.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
+        process.stderr.write(`[browser-use-api] Session ${sessionId}: Page loaded. Waiting 15s to settle...\n`);
+        await new Promise(r => setTimeout(r, 15000));
+
+        // If page looks empty or error, refresh once
+        const hasFilters = await prePage.evaluate(() => document.querySelectorAll('[data-filter-id]').length > 0).catch(() => false);
+        if (!hasFilters) {
+          process.stderr.write(`[browser-use-api] Session ${sessionId}: Page empty — refreshing...\n`);
+          await prePage.reload({ waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
+          await prePage.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
+          await new Promise(r => setTimeout(r, 10000));
+        }
+
+        // Click broom to clear all filters
+        const broomClicked = await prePage.evaluate(() => {
+          const btn = document.querySelector('button:has(i.fa-broom-wide)') ||
+                      document.querySelector('.filter-title-actions button:last-child');
+          if (btn && btn.getBoundingClientRect().width > 0) { btn.click(); return true; }
+          return false;
+        }).catch(() => false);
+        process.stderr.write(`[browser-use-api] Session ${sessionId}: Broom clicked: ${broomClicked}. Filters cleared.\n`);
+        await new Promise(r => setTimeout(r, 2000));
+
+        try { await preBrowser.close(); } catch {}
+        process.stderr.write(`[browser-use-api] Session ${sessionId}: Pre-launch complete. Activating agent...\n`);
+      } catch (preErr) {
+        process.stderr.write(`[browser-use-api] Session ${sessionId}: Pre-launch error (non-fatal): ${preErr.message.slice(0, 150)}\n`);
+      }
+
       const postLog = (event) => {
         try {
           const cbPath = `/tmp/bu-log-${sessionId}-${Date.now()}.json`;
@@ -981,25 +1022,31 @@ async function handleBrowserUse(req, res) {
       // Auto-trigger lead import if agent succeeded and pageTurns is configured
       if (result.success && sessionConfig?.pageTurns) {
         const importListName = sessionConfig.listName;
-        const leadCount = sessionConfig.pageTurns * 100; // each page = 100 leads
+        const leadCount = sessionConfig.pageTurns * 100;
         process.stderr.write(`[browser-use-api] Session ${sessionId}: Auto-starting lead import: "${importListName}", ${leadCount} leads (${sessionConfig.pageTurns} pages)\n`);
 
         const importPayload = {
           list_name: importListName,
           lead_count: leadCount,
-          filters: [],  // filters already applied by browser-use agent
+          filters: [],
           callback_url: BU_LOG_ENDPOINT,
           callback_metadata: { execution_id: sessionId },
         };
         const importPath = `/tmp/lemlist-import-${sessionId}.json`;
         writeFileSync(importPath, JSON.stringify(importPayload));
 
+        const importLogPath = `/tmp/lemlist-import-${sessionId}.log`;
+        const { openSync } = await import('fs');
+        const importLogFd = openSync(importLogPath, 'a');
         spawn(process.execPath, [
           '/data/lemlist/lemlist-collect.js',
           importPath,
           BU_LOG_ENDPOINT,
           sessionId,
-        ], { detached: true, stdio: 'ignore', env: process.env }).unref();
+        ], { detached: true, stdio: ['ignore', importLogFd, importLogFd], env: process.env }).unref();
+        process.stderr.write(`[browser-use-api] Import log: ${importLogPath}\n`);
+      } else if (result.success) {
+        process.stderr.write(`[browser-use-api] Session ${sessionId}: Agent succeeded but import NOT auto-started (pageTurns=${sessionConfig?.pageTurns}, result="${(result.result || '').slice(0, 50)}")\n`);
       }
 
     } catch (e) {

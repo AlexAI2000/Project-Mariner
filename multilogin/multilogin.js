@@ -372,8 +372,8 @@ export async function startProfile(profileId, folderId = null) {
       process.stderr.write(`[multilogin] /json/version attempt ${attempt}/6 failed: ${e.message}\n`);
       if (attempt < 6) await sleep(3000);
       else {
-        process.stderr.write(`[multilogin] All /json/version attempts failed — using HTTP fallback\n`);
-        cdpUrl = `http://${ML_CDP_HOST}:${externalCdpPort}`;
+        process.stderr.write(`[multilogin] All /json/version attempts failed — using ws:// fallback\n`);
+        cdpUrl = `ws://${ML_CDP_HOST}:${externalCdpPort}`;
       }
     }
   }
