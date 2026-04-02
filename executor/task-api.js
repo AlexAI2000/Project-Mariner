@@ -871,64 +871,70 @@ async function handleBrowserUse(req, res) {
       const profileId = 'dc19bdae-14f0-44aa-949e-903ce82ef2fa';
       const folderId = process.env.MULTILOGIN_FOLDER_ID || '3d1d4dee-4839-49fc-a414-616b069c9fbf';
 
+      // Get CDP URL — handles ALL states: not started, already running, agent disconnected
       let cdpUrl;
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          process.stderr.write(`[browser-use-api] Session ${sessionId}: startProfile attempt ${attempt}/3\n`);
-          cdpUrl = await startProfile(profileId, folderId);
-          break; // success
-        } catch (startErr) {
-          process.stderr.write(`[browser-use-api] startProfile attempt ${attempt} failed: ${startErr.message.slice(0, 200)}\n`);
+      const { stopProfile } = await import('/data/multilogin/multilogin.js');
 
-          // Attempt 1 fallback: try cached CDP URL
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        process.stderr.write(`[browser-use-api] Session ${sessionId}: startProfile attempt ${attempt}/3\n`);
+        try {
+          cdpUrl = await startProfile(profileId, folderId);
+          break;
+        } catch (startErr) {
+          const msg = startErr.message || '';
+          process.stderr.write(`[browser-use-api] Attempt ${attempt} failed: ${msg.slice(0, 150)}\n`);
+
           if (attempt === 1) {
+            // Try cached CDP
             try {
-              const openProfiles = JSON.parse(readFileSync('/data/multilogin/open-profiles.json', 'utf8'));
-              const cached = openProfiles[profileId];
+              const cached = JSON.parse(readFileSync('/data/multilogin/open-profiles.json', 'utf8'))[profileId];
               if (cached?.cdpUrl) {
-                process.stderr.write(`[browser-use-api] Using cached CDP: ${cached.cdpUrl}\n`);
-                cdpUrl = cached.cdpUrl;
-                break;
+                // Verify it's actually reachable
+                const testFetch = await fetch(cached.cdpUrl.replace('ws://', 'http://').replace(/\/devtools.*/, '/json/version'), { signal: AbortSignal.timeout(5000) }).catch(() => null);
+                if (testFetch?.ok) {
+                  cdpUrl = cached.cdpUrl;
+                  process.stderr.write(`[browser-use-api] Using verified cached CDP: ${cdpUrl}\n`);
+                  break;
+                }
               }
             } catch {}
           }
 
-          // Attempt 2+3: trigger MLX recovery via recover-mlx.sh and wait
-          if (attempt >= 2) {
-            process.stderr.write(`[browser-use-api] Triggering MLX auto-recovery (attempt ${attempt})...\n`);
+          if (attempt === 2) {
+            // Stop the profile completely and restart fresh
+            process.stderr.write(`[browser-use-api] Stopping profile and restarting fresh...\n`);
             try {
-              // Run the recovery script which checks launcher and writes signal for host watchdog
-              const recovery = spawnSync('bash', ['/data/recover-mlx.sh'], {
-                timeout: 75000, // 75s max (script waits up to 60s internally)
-                stdio: ['ignore', 'pipe', 'pipe'],
-              });
-              const out = (recovery.stdout?.toString() || '') + (recovery.stderr?.toString() || '');
-              process.stderr.write(`[browser-use-api] Recovery output: ${out.slice(-300)}\n`);
-
-              if (recovery.status === 0) {
-                process.stderr.write(`[browser-use-api] Recovery succeeded — retrying startProfile...\n`);
-              } else {
-                process.stderr.write(`[browser-use-api] Recovery script exited ${recovery.status}\n`);
-              }
-            } catch (recoveryErr) {
-              process.stderr.write(`[browser-use-api] Recovery error: ${recoveryErr.message}\n`);
+              await stopProfile(profileId).catch(() => {});
+              writeFileSync('/data/multilogin/open-profiles.json', '{}');
+              await new Promise(r => setTimeout(r, 5000));
+              cdpUrl = await startProfile(profileId, folderId);
+              break;
+            } catch (e2) {
+              process.stderr.write(`[browser-use-api] Fresh restart failed: ${e2.message.slice(0, 100)}\n`);
             }
-            await new Promise(r => setTimeout(r, 5000));
+          }
 
-            if (attempt === 3) {
-              // Final attempt after recovery
-              try {
-                cdpUrl = await startProfile(profileId, folderId);
-                break;
-              } catch (finalErr) {
-                throw new Error(`All recovery attempts failed. Last: ${finalErr.message.slice(0, 200)}`);
-              }
+          if (attempt === 3) {
+            // Last resort: run recovery script + final attempt
+            process.stderr.write(`[browser-use-api] Running MLX recovery...\n`);
+            try {
+              spawnSync('bash', ['/data/recover-mlx.sh'], { timeout: 75000, stdio: ['ignore', 'pipe', 'pipe'] });
+            } catch {}
+            await new Promise(r => setTimeout(r, 10000));
+            try {
+              await stopProfile(profileId).catch(() => {});
+              writeFileSync('/data/multilogin/open-profiles.json', '{}');
+              await new Promise(r => setTimeout(r, 5000));
+              cdpUrl = await startProfile(profileId, folderId);
+              break;
+            } catch (finalErr) {
+              throw new Error(`All 3 attempts failed. Last: ${finalErr.message.slice(0, 150)}`);
             }
           }
         }
       }
 
-      if (!cdpUrl) throw new Error('Failed to obtain CDP URL after all recovery attempts');
+      if (!cdpUrl) throw new Error('No CDP URL obtained');
 
       process.stderr.write(`[browser-use-api] Session ${sessionId}: CDP ${cdpUrl}\n`);
       activeBrowserUseSessions.set(sessionId, {
@@ -947,7 +953,8 @@ async function handleBrowserUse(req, res) {
         const prePage = await preCtx.newPage();
 
         // Navigate and wait for page to fully load
-        await prePage.goto('https://app.lemlist.com/teams/tea_NqA4w3k43yBJK2NKw/people-database', {
+        // Tag the tab with session ID so browser-use and import can find THIS exact tab
+        await prePage.goto(`https://app.lemlist.com/teams/tea_NqA4w3k43yBJK2NKw/people-database#session=${sessionId}`, {
           waitUntil: 'domcontentloaded', timeout: 60000,
         }).catch(() => {});
         await prePage.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
@@ -972,6 +979,15 @@ async function handleBrowserUse(req, res) {
         }).catch(() => false);
         process.stderr.write(`[browser-use-api] Session ${sessionId}: Broom clicked: ${broomClicked}. Filters cleared.\n`);
         await new Promise(r => setTimeout(r, 2000));
+
+        // Close ALL tabs EXCEPT the session-tagged one — guarantees agent lands on the right page
+        const allTabs = preCtx.pages();
+        for (const tab of allTabs) {
+          if (!tab.url().includes(`session=${sessionId}`)) {
+            try { await tab.close(); } catch {}
+          }
+        }
+        process.stderr.write(`[browser-use-api] Session ${sessionId}: Closed other tabs. Remaining: ${preCtx.pages().length} tab(s)\n`);
 
         try { await preBrowser.close(); } catch {}
         process.stderr.write(`[browser-use-api] Session ${sessionId}: Pre-launch complete. Activating agent...\n`);
@@ -1030,7 +1046,8 @@ async function handleBrowserUse(req, res) {
           lead_count: leadCount,
           filters: [],
           callback_url: BU_LOG_ENDPOINT,
-          callback_metadata: { execution_id: sessionId },
+          callback_metadata: { execution_id: sessionId, session_id: sessionId },
+          auth_token: sessionConfig.authToken,
         };
         const importPath = `/tmp/lemlist-import-${sessionId}.json`;
         writeFileSync(importPath, JSON.stringify(importPayload));
