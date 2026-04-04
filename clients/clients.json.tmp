@@ -462,5 +462,26 @@
       "profileId": "2f031cf6-5b9d-4a4d-bf32-1695616ae649",
       "folderId": "3d1d4dee-4839-49fc-a414-616b069c9fbf"
     }
+  },
+  "KXRizZqcR6eZPFchErRLJA": {
+    "name": "KXRizZqcR6eZPFchErRLJA",
+    "phone": null,
+    "proxy": {
+      "type": "http",
+      "host": "gate.multilogin.com",
+      "port": 8080,
+      "login": "2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-3bXDyDlRegz1hzcHTXe-ttl-24h-filter-medium",
+      "password": "d7604f82727b8972ce71ca4e8d96fd0d",
+      "connectionUrl": "gate.multilogin.com:8080:2235486254_3d1d4dee_4839_49fc_a414_616b069c9fbf_multilogin_com-country-us-sid-3bXDyDlRegz1hzcHTXe-ttl-24h-filter-medium:d7604f82727b8972ce71ca4e8d96fd0d"
+    },
+    "email": null,
+    "mlProfiles": {},
+    "credentials": {},
+    "briefing": null,
+    "profileContent": null,
+    "mlProfile": {
+      "profileId": "8ac367ed-d00e-4862-9ddd-9b8c64bf151e",
+      "folderId": "3d1d4dee-4839-49fc-a414-616b069c9fbf"
+    }
   }
 }
