@@ -1037,9 +1037,22 @@ async function handleBrowserUse(req, res) {
 
       // Auto-trigger lead import if agent succeeded and pageTurns is configured
       if (result.success && sessionConfig?.pageTurns) {
+        // Wait 5 seconds for agent process to fully die and release browser
+        process.stderr.write(`[browser-use-api] Session ${sessionId}: Waiting 5s for agent cleanup...\n`);
+        await new Promise(r => setTimeout(r, 5000));
+
         const importListName = sessionConfig.listName;
         const leadCount = sessionConfig.pageTurns * 100;
-        process.stderr.write(`[browser-use-api] Session ${sessionId}: Auto-starting lead import: "${importListName}", ${leadCount} leads (${sessionConfig.pageTurns} pages)\n`);
+
+        // Read the current CDP URL to pass explicitly to the import
+        let importCdpUrl = sessionConfig.cdpUrl || '';
+        try {
+          const cached = JSON.parse(readFileSync('/data/multilogin/open-profiles.json', 'utf8'));
+          const entry = cached['dc19bdae-14f0-44aa-949e-903ce82ef2fa'];
+          if (entry?.cdpUrl) importCdpUrl = entry.cdpUrl;
+        } catch {}
+
+        process.stderr.write(`[browser-use-api] Session ${sessionId}: Auto-starting lead import: "${importListName}", ${leadCount} leads, CDP: ${importCdpUrl.slice(0, 50)}\n`);
 
         const importPayload = {
           list_name: importListName,
@@ -1048,6 +1061,7 @@ async function handleBrowserUse(req, res) {
           callback_url: BU_LOG_ENDPOINT,
           callback_metadata: { execution_id: sessionId, session_id: sessionId },
           auth_token: sessionConfig.authToken,
+          cdp_url: importCdpUrl,
         };
         const importPath = `/tmp/lemlist-import-${sessionId}.json`;
         writeFileSync(importPath, JSON.stringify(importPayload));
