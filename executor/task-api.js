@@ -846,7 +846,10 @@ async function handleBrowserUse(req, res) {
     session_id: sessionId,
     user_prompt: userPrompt,
     system_prompt: systemPrompt,
-    agent_type: agentType = 'default',
+    agent_type: agentType = 'lemlist_filter',
+    pilot_name: pilotName = 'Lead Collector',
+    account_id: accountId = null,
+    client_name: clientName = null,
     lead_import_page_turns: pageTurns = null,
     list: listName = null,
   } = body;
@@ -854,6 +857,7 @@ async function handleBrowserUse(req, res) {
 
   if (!sessionId) return err(res, 400, 'session_id is required');
   if (!userPrompt) return err(res, 400, 'user_prompt is required');
+  if (agentType === 'linkedin_browser' && !accountId) return err(res, 400, 'account_id is required for linkedin_browser agent_type');
 
   // Respond immediately — agent runs in background
   json(res, 200, {
@@ -865,11 +869,29 @@ async function handleBrowserUse(req, res) {
   // Spawn agent in background
   (async () => {
     try {
-      // ── Start MLX Lead_Collector profile with full error recovery ──────────
+      // ── Resolve MLX profile based on agent_type ──────────────────────────
       const { startProfile } = await import('/data/multilogin/multilogin.js');
-      // Lead_Collector_V2 profile — hardcoded ID for reliability
-      const profileId = 'dc19bdae-14f0-44aa-949e-903ce82ef2fa';
-      const folderId = process.env.MULTILOGIN_FOLDER_ID || '3d1d4dee-4839-49fc-a414-616b069c9fbf';
+      let profileId, folderId;
+
+      if (agentType === 'linkedin_browser') {
+        // Resolve client's MLX profile from account_id
+        process.stderr.write(`[browser-use-api] Session ${sessionId}: Resolving client profile for ${accountId}...\n`);
+        const clientResult = spawnSync(process.execPath, [
+          '/data/clients/client-manager.js', 'resolve', accountId, ...(clientName ? [clientName] : []),
+        ], { encoding: 'utf8', timeout: 60000 });
+        if (clientResult.status !== 0) {
+          throw new Error(`Client resolve failed for ${accountId}: ${(clientResult.stderr || '').trim().slice(0, 200)}`);
+        }
+        const clientContext = JSON.parse(clientResult.stdout.trim());
+        profileId = clientContext.mlProfileId;
+        folderId = clientContext.folderId;
+        if (!profileId) throw new Error(`No MLX profile found for account_id ${accountId}`);
+        process.stderr.write(`[browser-use-api] Session ${sessionId}: Client ${accountId} → profile ${profileId}\n`);
+      } else {
+        // Lead Collector — hardcoded profile
+        profileId = 'dc19bdae-14f0-44aa-949e-903ce82ef2fa';
+        folderId = process.env.MULTILOGIN_FOLDER_ID || '3d1d4dee-4839-49fc-a414-616b069c9fbf';
+      }
 
       // Get CDP URL — handles ALL states: not started, already running, agent disconnected
       let cdpUrl;
@@ -943,7 +965,8 @@ async function handleBrowserUse(req, res) {
         listName: listName || `import_${sessionId.slice(0, 8)}`,
       });
 
-      // Pre-launch: open fresh tab → navigate → wait 15s → click broom → activate agent
+      // Pre-launch: Lemlist setup (ONLY for lemlist_filter, NOT linkedin_browser)
+      if (agentType !== 'linkedin_browser') {
       process.stderr.write(`[browser-use-api] Session ${sessionId}: Pre-launch — opening fresh Lemlist tab...\n`);
       try {
         const pwPkg = await import('/data/human-browser/node_modules/playwright-core/index.js');
@@ -994,6 +1017,7 @@ async function handleBrowserUse(req, res) {
       } catch (preErr) {
         process.stderr.write(`[browser-use-api] Session ${sessionId}: Pre-launch error (non-fatal): ${preErr.message.slice(0, 150)}\n`);
       }
+      } // end if (agentType !== 'linkedin_browser')
 
       const postLog = (event) => {
         try {
@@ -1019,6 +1043,9 @@ async function handleBrowserUse(req, res) {
         toolEndpoint: BU_TASK_ENDPOINT,
         toolSessionId: sessionId,
         toolAuthToken: authToken,
+        pilotName,
+        agentType,
+        profileId,
       });
 
       const sessionConfig = activeBrowserUseSessions.get(sessionId);
